@@ -1,0 +1,351 @@
+/*---------------------------------------------------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2306                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+Build  : _fbf00d6b-20230626 OPENFOAM=2306 version=2306
+Arch   : "LSB;label=32;scalar=64"
+Exec   : decomposePar
+Date   : Jan 03 2024
+Time   : 17:05:28
+Host   : TUE037007
+PID    : 1741595
+I/O    : uncollated
+Case   : /home/sschepers/Codes/OpenFOAM/FGMFoam/Z_h_PV/testcases/laminarFlamelet/B-Results
+nProcs : 1
+trapFpe: Floating point exception trapping enabled (FOAM_SIGFPE).
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 5, maxFileModificationPolls 20)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+Create time
+
+
+
+Decomposing mesh
+
+Create mesh
+
+Calculating distribution of cells
+Decomposition method scotch [6] (region region0)
+
+Finished decomposition in 0.05 s
+
+Calculating original mesh data
+
+Distributing cells to processors
+
+Distributing faces to processors
+
+Distributing points to processors
+
+Constructing processor meshes
+
+Processor 0
+    Number of cells = 530
+    Number of points = 2124
+    Number of faces shared with processor 1 = 1
+    Number of processor patches = 1
+    Number of processor faces = 1
+    Number of boundary faces = 2121
+
+Processor 1
+    Number of cells = 531
+    Number of points = 2128
+    Number of faces shared with processor 0 = 1
+    Number of faces shared with processor 2 = 1
+    Number of processor patches = 2
+    Number of processor faces = 2
+    Number of boundary faces = 2124
+
+Processor 2
+    Number of cells = 530
+    Number of points = 2124
+    Number of faces shared with processor 1 = 1
+    Number of faces shared with processor 3 = 1
+    Number of processor patches = 2
+    Number of processor faces = 2
+    Number of boundary faces = 2120
+
+Processor 3
+    Number of cells = 531
+    Number of points = 2128
+    Number of faces shared with processor 2 = 1
+    Number of faces shared with processor 4 = 1
+    Number of processor patches = 2
+    Number of processor faces = 2
+    Number of boundary faces = 2124
+
+Processor 4
+    Number of cells = 531
+    Number of points = 2128
+    Number of faces shared with processor 3 = 1
+    Number of faces shared with processor 5 = 1
+    Number of processor patches = 2
+    Number of processor faces = 2
+    Number of boundary faces = 2124
+
+Processor 5
+    Number of cells = 530
+    Number of points = 2124
+    Number of faces shared with processor 4 = 1
+    Number of processor patches = 1
+    Number of processor faces = 1
+    Number of boundary faces = 2121
+
+Number of processor faces = 5
+Max number of cells = 531 (0.0942507069% above average 530.5)
+Max number of processor patches = 2 (20% above average 1.66666667)
+Max number of faces between processors = 2 (20% above average 1.66666667)
+
+Time = 0
+Ncv = 3
+Ngrid[0] = 300
+Ngrid[1] = 100
+Ngrid[2] = 50
+Nvar = 26
+CV1
+CV2
+CV3
+SOURCE_CV1
+PREFDIFF_CV1_H
+PREFDIFF_CV1_H2
+PREFDIFF_CV1_H2O
+PREFDIFF_CV1_T
+PREFDIFF_CV2_H
+PREFDIFF_CV2_H2
+PREFDIFF_CV2_H2O
+PREFDIFF_CV2_T
+PREFDIFF_CV3_H
+PREFDIFF_CV3_H2
+PREFDIFF_CV3_H2O
+PREFDIFF_CV3_T
+H
+H2
+H2O
+DENSITY
+TEMPERATURE
+CP
+CONDUCTIVITY
+VISCOSITY
+SPATIALCOORD
+MASSFLOW
+Gridpower[0] = -1.000000, 1.000000
+Gridpower[1] = -1.000000, 1.000000
+Gridpower[2] = -1.000000, 1.000000
+
+Processor 0: field transfer
+Ncv = 3
+Ngrid[0] = 300
+Ngrid[1] = 100
+Ngrid[2] = 50
+Nvar = 26
+CV1
+CV2
+CV3
+SOURCE_CV1
+PREFDIFF_CV1_H
+PREFDIFF_CV1_H2
+PREFDIFF_CV1_H2O
+PREFDIFF_CV1_T
+PREFDIFF_CV2_H
+PREFDIFF_CV2_H2
+PREFDIFF_CV2_H2O
+PREFDIFF_CV2_T
+PREFDIFF_CV3_H
+PREFDIFF_CV3_H2
+PREFDIFF_CV3_H2O
+PREFDIFF_CV3_T
+H
+H2
+H2O
+DENSITY
+TEMPERATURE
+CP
+CONDUCTIVITY
+VISCOSITY
+SPATIALCOORD
+MASSFLOW
+Gridpower[0] = -1.000000, 1.000000
+Gridpower[1] = -1.000000, 1.000000
+Gridpower[2] = -1.000000, 1.000000
+Processor 1: field transfer
+Ncv = 3
+Ngrid[0] = 300
+Ngrid[1] = 100
+Ngrid[2] = 50
+Nvar = 26
+CV1
+CV2
+CV3
+SOURCE_CV1
+PREFDIFF_CV1_H
+PREFDIFF_CV1_H2
+PREFDIFF_CV1_H2O
+PREFDIFF_CV1_T
+PREFDIFF_CV2_H
+PREFDIFF_CV2_H2
+PREFDIFF_CV2_H2O
+PREFDIFF_CV2_T
+PREFDIFF_CV3_H
+PREFDIFF_CV3_H2
+PREFDIFF_CV3_H2O
+PREFDIFF_CV3_T
+H
+H2
+H2O
+DENSITY
+TEMPERATURE
+CP
+CONDUCTIVITY
+VISCOSITY
+SPATIALCOORD
+MASSFLOW
+Gridpower[0] = -1.000000, 1.000000
+Gridpower[1] = -1.000000, 1.000000
+Gridpower[2] = -1.000000, 1.000000
+Processor 2: field transfer
+Ncv = 3
+Ngrid[0] = 300
+Ngrid[1] = 100
+Ngrid[2] = 50
+Nvar = 26
+CV1
+CV2
+CV3
+SOURCE_CV1
+PREFDIFF_CV1_H
+PREFDIFF_CV1_H2
+PREFDIFF_CV1_H2O
+PREFDIFF_CV1_T
+PREFDIFF_CV2_H
+PREFDIFF_CV2_H2
+PREFDIFF_CV2_H2O
+PREFDIFF_CV2_T
+PREFDIFF_CV3_H
+PREFDIFF_CV3_H2
+PREFDIFF_CV3_H2O
+PREFDIFF_CV3_T
+H
+H2
+H2O
+DENSITY
+TEMPERATURE
+CP
+CONDUCTIVITY
+VISCOSITY
+SPATIALCOORD
+MASSFLOW
+Gridpower[0] = -1.000000, 1.000000
+Gridpower[1] = -1.000000, 1.000000
+Gridpower[2] = -1.000000, 1.000000
+Processor 3: field transfer
+Ncv = 3
+Ngrid[0] = 300
+Ngrid[1] = 100
+Ngrid[2] = 50
+Nvar = 26
+CV1
+CV2
+CV3
+SOURCE_CV1
+PREFDIFF_CV1_H
+PREFDIFF_CV1_H2
+PREFDIFF_CV1_H2O
+PREFDIFF_CV1_T
+PREFDIFF_CV2_H
+PREFDIFF_CV2_H2
+PREFDIFF_CV2_H2O
+PREFDIFF_CV2_T
+PREFDIFF_CV3_H
+PREFDIFF_CV3_H2
+PREFDIFF_CV3_H2O
+PREFDIFF_CV3_T
+H
+H2
+H2O
+DENSITY
+TEMPERATURE
+CP
+CONDUCTIVITY
+VISCOSITY
+SPATIALCOORD
+MASSFLOW
+Gridpower[0] = -1.000000, 1.000000
+Gridpower[1] = -1.000000, 1.000000
+Gridpower[2] = -1.000000, 1.000000
+Processor 4: field transfer
+Ncv = 3
+Ngrid[0] = 300
+Ngrid[1] = 100
+Ngrid[2] = 50
+Nvar = 26
+CV1
+CV2
+CV3
+SOURCE_CV1
+PREFDIFF_CV1_H
+PREFDIFF_CV1_H2
+PREFDIFF_CV1_H2O
+PREFDIFF_CV1_T
+PREFDIFF_CV2_H
+PREFDIFF_CV2_H2
+PREFDIFF_CV2_H2O
+PREFDIFF_CV2_T
+PREFDIFF_CV3_H
+PREFDIFF_CV3_H2
+PREFDIFF_CV3_H2O
+PREFDIFF_CV3_T
+H
+H2
+H2O
+DENSITY
+TEMPERATURE
+CP
+CONDUCTIVITY
+VISCOSITY
+SPATIALCOORD
+MASSFLOW
+Gridpower[0] = -1.000000, 1.000000
+Gridpower[1] = -1.000000, 1.000000
+Gridpower[2] = -1.000000, 1.000000
+Processor 5: field transfer
+Ncv = 3
+Ngrid[0] = 300
+Ngrid[1] = 100
+Ngrid[2] = 50
+Nvar = 26
+CV1
+CV2
+CV3
+SOURCE_CV1
+PREFDIFF_CV1_H
+PREFDIFF_CV1_H2
+PREFDIFF_CV1_H2O
+PREFDIFF_CV1_T
+PREFDIFF_CV2_H
+PREFDIFF_CV2_H2
+PREFDIFF_CV2_H2O
+PREFDIFF_CV2_T
+PREFDIFF_CV3_H
+PREFDIFF_CV3_H2
+PREFDIFF_CV3_H2O
+PREFDIFF_CV3_T
+H
+H2
+H2O
+DENSITY
+TEMPERATURE
+CP
+CONDUCTIVITY
+VISCOSITY
+SPATIALCOORD
+MASSFLOW
+Gridpower[0] = -1.000000, 1.000000
+Gridpower[1] = -1.000000, 1.000000
+Gridpower[2] = -1.000000, 1.000000
+
+End
+

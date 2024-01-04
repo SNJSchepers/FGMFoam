@@ -1,0 +1,111 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  3.0.1                                 |
+|   \\  /    A nd           | Web:      www.OpenFOAM.org                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      blockMeshDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+scale 1.0;
+
+lF           FLAMETHICKNESS;
+nCellsFlame  FLAMECELLS;
+
+width  0.1e-3;  
+xMin   0.0;  
+xMax   #eval{ 200.0*$lF };  
+yMin   0.0;  
+yMax   #eval{ 100.0*$lF };  
+
+dx #eval{ $lF/$nCellsFlame };
+
+nCellsX  #eval{ round(mag(($xMax - $xMin)/$dx)) };
+nCellsY  #eval{ round(mag(($yMax - $yMin)/$dx)) };
+nCellsZ  1;
+
+vertices
+(
+    name v000 ($xMin $yMin 0.0) 
+    name v001 ($xMax $yMin 0.0) 
+    name v002 ($xMax $yMax 0.0) 
+    name v003 ($xMin $yMax 0.0) 
+    
+    name v100 ($xMin $yMin $width) 
+    name v101 ($xMax $yMin $width) 
+    name v102 ($xMax $yMax $width)
+    name v103 ($xMin $yMax $width) 
+);
+
+blocks
+(
+    hex (v000 v001 v002 v003 v100 v101 v102 v103) ($nCellsX $nCellsY $nCellsZ) simpleGrading (1 1 1)
+);
+
+edges
+(
+);
+
+boundary
+(
+    open
+    {
+        type patch;
+        faces
+        (
+            (v102 v101 v001 v002)
+        );
+    }
+
+    closed
+    {
+        type patch;
+        faces
+        (
+            (v100 v103 v003 v000)
+        );
+    }
+
+    lower
+    {
+        type           cyclic;
+        neighbourPatch upper;
+        faces
+        (
+            (v100 v000 v001 v101)
+        );
+    }
+
+    upper
+    {
+        type           cyclic;
+        neighbourPatch lower;
+        faces
+        (
+            (v103 v102 v002 v003)
+        );
+    }
+
+    sides
+    {
+        type empty;
+        faces
+        (
+            (v100 v101 v102 v103)
+            (v000 v003 v002 v001)
+        );
+    }
+);
+
+mergePatchPairs
+(
+);
+
+// ************************************************************************* //

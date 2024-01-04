@@ -1,0 +1,48 @@
+/*---------------------------------------------------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2306                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+Build  : _fbf00d6b-20230626 OPENFOAM=2306 version=2306
+Arch   : "LSB;label=32;scalar=64"
+Exec   : setExprFields
+Date   : Jan 03 2024
+Time   : 17:05:28
+Host   : TUE037007
+PID    : 1741579
+I/O    : uncollated
+Case   : /home/sschepers/Codes/OpenFOAM/FGMFoam/Z_h_PV/testcases/laminarFlamelet/B-Results
+nProcs : 1
+trapFpe: Floating point exception trapping enabled (FOAM_SIGFPE).
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 5, maxFileModificationPolls 20)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+Create time
+
+Create mesh for time = 0
+
+
+Time = 0
+Modify field: PV (type: volScalarField) time=0
+Expression:
+>>>>
+
+            (PV1 - PV0)/dxIgn * pos().x() + PV0 - (PV1 - PV0)/dxIgn * (xIgn - 0.5*dxIgn)
+        
+<<<<
+field-mask:
+>>>>
+(pos().x() > xIgn - 0.5*dxIgn) && (pos().x() < xIgn + 0.5*dxIgn)
+<<<<
+
+Dispatch ... volScalarField
+setField(PV): volScalarField
+Set 100 of 3183 values
+Setting dimensions to [0 0 0 0 0 0 0]
+Writing to PV
+
+End
+

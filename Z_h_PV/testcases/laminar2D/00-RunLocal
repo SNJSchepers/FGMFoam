@@ -1,0 +1,94 @@
+#!/bin/bash
+cd "${0%/*}" || exit                                # Run from this directory
+. ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions        # Tutorial run functions
+#------------------------------------------------------------------------------
+
+echo " "
+echo " ==== COMPUTING 1-DIMENSIONAL FLAME ==== "
+echo " "
+
+# ==> Define input parameters
+p0=101325.0             # [Pa]
+T0=300.0                # [K]
+
+Z0=1.4461706890e-02     # [-]
+h0=2.2738946145e+03     # [J/kg]
+PV0=-7.1736792216e-03   # [-]
+PV1=7.1669021364e-03    # [-]
+
+lF=4.3883e-4            # laminar flame thickness [m] 
+nCellsFlame=10          # laminar flame thickness [m] 
+
+nProcs=8                # [-]
+simtime=2.0e-7          # [s]
+simtimestep=2.0e-7      # [s]
+simwritesteps=100       # [-]
+
+simwritetime=$(echo $simtime $simwritesteps | awk '{printf ($1/$2) }' )
+
+# ==> Go to Results-folder
+[ -d ${PWD}/B-Results/ ] && rm -rf ${PWD}/B-Results/
+[ ! -d ${PWD}/B-Results/ ] && mkdir B-Results/
+cd B-Results/
+
+# ---------- Clean-up and copy default files ----------
+[ -d ${PWD}/constant ] && rm -rf ${PWD}/constant
+[ -d ${PWD}/system ] && rm -rf ${PWD}/system
+[ -d ${PWD}/postProcessing/ ] && rm -rf ${PWD}/postProcessing/
+[ -f ${PWD}/flamelet.foam ] && rm ${PWD}/flamelet.foam
+for resultdir in 0*/; do rm -rf ${resultdir}; done
+        
+cp -r ../A-SetUp/constant .
+cp -r ../A-SetUp/system .
+cp -r ../A-SetUp/0 .
+cp ../A-SetUp/foam.foam .
+
+cp ../../../../../FGMDatabases/PV_h_Z/database.fgm constant/lookUp/
+	
+# ---------- Set simulation settings ----------
+sed -i "s/FLAMETHICKNESS/${lF}/" system/blockMeshDict
+sed -i "s/FLAMECELLS/${nCellsFlame}/" system/blockMeshDict
+
+sed -i "s/SIMULATIONTIME/$simtime/" system/controlDict
+sed -i "s/SIMULATIONDELTATIME/$simtimestep/" system/controlDict
+sed -i "s/SIMULATIONWRITETIME/${simwritetime}/" system/controlDict
+
+sed -i "s/NPROCS/${nProcs}/" system/decomposeParDict
+
+sed -i "s/INITIALPRESSURE/${p0}/" 0/p
+sed -i "s/INITIALTEMPERATURE/${T0}/" 0/T
+sed -i "s/INITIALPROGRESSVARIABLE/${PV0}/" 0/PV
+sed -i "s/INITIALENTHALPY/${h0}/" 0/h
+sed -i "s/INITIALMIXTUREFRACTION/${Z0}/" 0/Z
+  
+sed -i "s/INITIALPROGRESSVARIABLE/${PV0}/" system/setExprFieldsDict
+sed -i "s/FINALPROGRESSVARIABLE/${PV1}/" system/setExprFieldsDict
+sed -i "s/FLAMETHICKNESS/${lF}/" system/setExprFieldsDict
+    
+# ---------- Run simulation ----------
+[ -d ${PWD}/constant/polyMesh ] && rm -rf ${PWD}/constant/polyMesh
+[ -f ${PWD}/log.blockMesh ] && rm ${PWD}/log.blockMesh
+runApplication blockMesh
+   
+[ -f ${PWD}/log.setExprFields ] && rm ${PWD}/log.setExprFields
+runApplication setExprFields
+ 
+#[ -f ${PWD}/log.FGMFoam ] && rm ${PWD}/log.FGMFoam
+#runApplication FGMFoam
+#exit 1
+
+[ -f ${PWD}/log.decomposePar ] && rm ${PWD}/log.decomposePar
+runApplication decomposePar
+   
+[ -f ${PWD}/log.mpirun ] && rm ${PWD}/log.mpirun
+runApplication mpirun -n $nProcs FGMFoam -parallel 
+    
+grep 'ExecutionTime' log.mpirun | tail -1 | cut -d "C" -f 1
+ 
+#[ -f ${PWD}/log.reconstructPar ] && rm ${PWD}/log.reconstructPar
+#runApplication reconstructPar
+#rm -rf processor*
+
+exit 0
+
+#-----------------------------------------------------------------------------

@@ -1,0 +1,88 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2206                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      setExprFieldsDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+expressions
+(
+    PV
+    {
+        field       PV;
+        dimensions  [0 0 0 0 0 0 0];
+
+//        constants
+//        {
+//        }
+
+        variables
+        (
+            "PV0 = INITIALPROGRESSVARIABLE"
+            "PV1 = FINALPROGRESSVARIABLE"
+            "lF  = FLAMETHICKNESS"
+            "A   = 0.5e-3"
+            "x0  = 8.0e-2"
+            "PI  = 3.141592653589793"
+        );
+
+        fieldMask
+        #{
+            //true
+            //(pos().x() < (x0 + A * sin(2.0 * pi * (1.0/(10.0 * lF)) * pos().y()))) 
+            (pos().x() > x0 + A * sin(2.0 * PI * 1.0/(10.0 * lF) * pos().y()) ) 
+        #};
+
+        expression
+        #{
+            PV1
+            //(pos().x() < (x0 + A * sin(2.0 * pi * (1.0/(10.0 * lF)) * pos().y()))) ? PV1 : PV0
+            //pos().x < (x0 + A * sin(2 * pi * (1/(10 * lF)) * pos().y)) ? PV1 : PV0
+            //(PV1 - PV0)/dxIgn * pos().x() - (PV1 - PV0)/dxIgn * (xIgn - 0.5*dxIgn)
+        #};
+    }
+);
+/*expressions
+(
+    U
+    {
+        field       U;
+        dimensions  [0 1 -1 0 0 0 0];
+
+//        constants
+//        {
+//        }
+
+        variables
+        (
+            "delta     = 8.75e-3"
+            "Ubar      = 10.0"
+            "deviation = 15*(rand() - 0.5)"
+        );
+
+        condition
+        #{
+            (pos().x() > 0)
+        #};
+
+        expression
+        #{
+            vector
+            (
+                6*Ubar*(pos().y()/(2*delta)*(1 - pos().y()/(2*delta))) + deviation,
+                deviation,
+                deviation
+            )
+        #};
+    }
+);*/
+
+// ************************************************************************* //

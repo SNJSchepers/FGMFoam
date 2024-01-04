@@ -1,0 +1,39 @@
+/*---------------------------------------------------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2306                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+Build  : _fbf00d6b-20230626 OPENFOAM=2306 version=2306
+Arch   : "LSB;label=32;scalar=64"
+Exec   : setFields
+Date   : Jan 04 2024
+Time   : 09:18:16
+Host   : TUE037007
+PID    : 1846110
+I/O    : uncollated
+Case   : /home/sschepers/Codes/OpenFOAM/FGMFoam/Z_h_PV/testcases/laminarFlamelet/B-Results
+nProcs : 1
+trapFpe: Floating point exception trapping enabled (FOAM_SIGFPE).
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 5, maxFileModificationPolls 20)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+Create time
+
+Create mesh for time = 0
+
+Reading setFieldsDict
+
+Setting volume field default values
+    - set internal values of volScalarField: PV = -0.00717367922
+
+Setting field region values
+
+    Adding cells with centre within boxes 1((0.015 -1 -1) (0.05 1 1))
+    Selected 2601/15237 cells
+    - set internal values of volScalarField: PV = 0.00716690214
+
+End
+
