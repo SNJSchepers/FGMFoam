@@ -1,0 +1,11 @@
+-include $(GENERAL_RULES)/mplib$(WM_MPLIB)
+
+EXE_INC = \
+    $(PFLAGS) \
+    $(PINC) \
+    -I$(MPI_ARCH_PATH)/include
+
+EXE_LIBS = \
+    -L$(MPI_ARCH_PATH)/lib \
+    -lmpi
+    

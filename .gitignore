@@ -1,0 +1,12 @@
+# Claude Code
+.claude/
+CLAUDE.md
+
+# OpenFOAM build artifacts
+**/Make/linux64*/
+**/lnInclude/
+
+# OpenFOAM run artifacts
+processor*/
+log.*
+postProcessing/

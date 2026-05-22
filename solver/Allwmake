@@ -1,0 +1,22 @@
+#!/bin/sh
+cd ${0%/*} || exit 1    # run from this directory
+makeType=${1:-libso}
+set -x
+clear
+
+# CLEAN-UP LIBRARIES
+wclean ./src/lookUp/
+wclean ./src/combustionModel/
+wclean ./src/lookUpBoundaryCondition/
+# CLEAN-UP SOLVERS
+wclean ./applications/FGMFoam/
+
+
+# CREATE LIBRARIES
+wmake $makeType ./src/lookUp/
+wmake $makeType ./src/combustionModel/
+wmake $makeType ./src/lookUpBoundaryCondition/
+# CREATE SOLVERS
+wmake ./applications/FGMFoam/
+
+exit 0

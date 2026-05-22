@@ -1,0 +1,11 @@
+CombustionModel and combustionModel are only included to ensure coherence between the thermo library and the FGM combustion model. No adapatations were made to these classes.
+
+FGM/FGM contains the wrapper and selector, it reads combustionProperties.FGMCoeffs and selects model.
+
+To add your own solver, copy one of the existing solvers and rename all files and class names to YOURSOLVERNAME
+
+Make sure to include the header YOURSOLVERNAME.H in FGM/FGM/FGM.H
+
+and make sure to add FGM/YOURSOLVERNAME/YOURSOLVERNAMEs.C to Make/files
+
+

@@ -1,0 +1,22 @@
+#!/bin/bash
+
+echo " "
+echo " ==== CLEANING FOLDER ==== "
+echo " "
+
+foamListTimes -rm
+
+[ -d ${PWD}/0/ ] && rm -rf ${PWD}/0/
+[ -d ${PWD}/system/ ] && rm -rf ${PWD}/system/
+
+[ -d ${pwd}/constant/polymesh ] && rm -rf ${pwd}/constant/polymesh
+
+for f in log.*; do
+  [ -e "$f" ] && rm "$f"
+done
+
+rm -rf processor*
+
+exit 0
+
+#-----------------------------------------------------------------------------
