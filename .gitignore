@@ -10,3 +10,7 @@ CLAUDE.md
 processor*/
 log.*
 postProcessing/
+
+# OpenFOAM time step output directories (but not 0.orig/)
+testcases/*/[0-9].[0-9]*/
+testcases/*/[1-9]*/
