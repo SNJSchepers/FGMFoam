@@ -1,7 +1,5 @@
 # FGMFoam
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Overview
 
 FGMFoam is an OpenFOAM combustion solver using Flamelet Generated Manifolds (FGM). It is developed by Stijn Schepers at Eindhoven University of Technology and built on top of OpenFOAM-com (ESI/OpenCFD branch).
