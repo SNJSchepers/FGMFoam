@@ -70,11 +70,10 @@ FGMFoam (solver app)
 ### `applications/FGMFoam` — solver
 
 PIMPLE-based compressible reactive solver. Per time step:
-1. **Density equation** (`rhoEqn.H`)
-2. **Momentum equation** (`UEqn.H`)
-3. **Combustion** — `combustion->correct()` (Yc and ht transport + FGM table lookup)
-4. **Pressure corrector loop** (`pEqn.H` or `pcEqn.H` for consistent PIMPLE)
-5. **Turbulence correction** — note: no sub-grid scale model is included; a warning is printed if the turbulence model is not `Stokes`
+1. **Momentum equation** (`UEqn.H`)
+2. **Combustion** — `combustion->correct()` (Yc and ht transport + FGM table lookup)
+3. **Pressure corrector loop** (`pEqn.H` or `pcEqn.H` for consistent PIMPLE)
+4. **Turbulence correction** — note: no sub-grid scale model is included; a warning is printed if the turbulence model is not `Stokes`
 
 ### FGM table (`tables/database.fgm`)
 
