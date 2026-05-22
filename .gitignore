@@ -1,3 +1,6 @@
+# IDE
+.vscode/
+
 # OpenFOAM build artifacts
 **/Make/linux64*/
 **/lnInclude/
