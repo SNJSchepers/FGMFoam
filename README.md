@@ -1,8 +1,25 @@
 # FGMFoam
 
+![OpenFOAM v2506](https://img.shields.io/badge/OpenFOAM-v2506-blue?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyeiIvPjwvc3ZnPg==)
+![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
+![Institution](https://img.shields.io/badge/Institution-TU%2Fe-red)
+
 ## Overview
 
 FGMFoam is an OpenFOAM combustion solver using Flamelet Generated Manifolds (FGM). It is developed by Stijn Schepers at Eindhoven University of Technology and built on top of OpenFOAM-com (ESI/OpenCFD branch).
+
+FGM is a tabulated chemistry approach that reduces the computational cost of combustion simulations by pre-computing the flame chemistry on a low-dimensional manifold, parameterised by a small set of control variables such as a progress variable and enthalpy. At runtime, all thermochemical quantities are retrieved from the pre-computed table rather than solved through detailed chemistry, making industrial-scale combustion simulations feasible.
+
+## Prerequisites
+
+| Requirement | Version / Notes |
+|---|---|
+| OpenFOAM-com (ESI/OpenCFD) | **v2506** (developed and tested on this version; later versions may work) |
+| MPI | Any standard implementation (OpenMPI, MPICH) — required for parallel runs and shared-memory table loading |
+| C++ standard | C++14 or later (as required by OpenFOAM-com) |
+| CMake / wmake | Provided by OpenFOAM — no separate installation needed |
+
+> **Note:** This solver is built on the **OpenFOAM-com** (ESI/OpenCFD) branch, not the OpenFOAM.org (Foundation) branch. The two branches are not interchangeable.
 
 ## Build
 
@@ -73,7 +90,7 @@ PIMPLE-based compressible reactive solver. Per time step:
 1. **Momentum equation** (`UEqn.H`)
 2. **Combustion** — `combustion->correct()` (Yc and ht transport + FGM table lookup)
 3. **Pressure corrector loop** (`pEqn.H` or `pcEqn.H` for consistent PIMPLE)
-4. **Turbulence correction** — note: no sub-grid scale model is included; a warning is printed if the turbulence model is not `Stokes`
+4. **Turbulence correction** — note: no sub-grid scale model for the turbulence-chemistry interaction is included yet; a warning is printed if the turbulence model is not `Laminar`
 
 ### FGM table (`tables/database.fgm`)
 
@@ -86,3 +103,32 @@ Binary table read by `FGMlib`. The table is indexed by two control variables (Yc
 3. Add `#include "YOURMODEL.H"` in `solver/src/combustionModel/FGM/FGM/FGM.H`
 4. Add `FGM/YOURMODEL/YOURMODELs.C` to `solver/src/combustionModel/Make/files`
 5. Rebuild `src/combustionModel/`
+
+## Known limitations
+
+- **Fuel support:** Only premixed methane–air flames (`FGM_PM_CH4_HL`) are currently implemented. Hydrogen combustion support is under active development; note that accurate hydrogen flame modelling requires accounting for preferential diffusion effects (non-unity Lewis numbers), which are not yet included.
+- **Turbulence modelling:** No sub-grid scale (SGS) turbulence-chemistry (TCI) interaction model is included. The solver will print a warning if the turbulence model is not set to `Laminar`. SGS TCI support is planned.
+- **Dimensionality:** The FGM table lookup is currently limited to two control variables (2D interpolation). Extension to higher-dimensional tables is not yet supported.
+- **OpenFOAM branch:** Only the OpenFOAM-com (ESI/OpenCFD) branch is supported. Compatibility with the OpenFOAM.org (Foundation) branch is not guaranteed.
+
+## Citation
+
+If you use FGMFoam in your research, please cite the following paper, in which the solver was applied to thermo-diffusively unstable lean premixed hydrogen–air flames:
+
+```bibtex
+@article{Schepers2025,
+  author  = {S. N. J. Schepers and J. A. van Oijen},
+  title   = {{FGM} modeling of thermo-diffusive unstable lean premixed hydrogen--air flames},
+  journal = {Combustion and Flame},
+  volume  = {280},
+  year    = {2025},
+  month   = oct,
+  doi     = {10.1016/j.combustflame.2025.113983}
+}
+```
+
+> **Note:** Hydrogen combustion capabilities described in the paper are not yet included in this public release and will be added in a future update.
+
+## License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
