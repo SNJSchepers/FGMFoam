@@ -71,7 +71,7 @@ FGMFoam (solver app)
 
 ### `src/lookUp` — table I/O and caching
 
-- **`FGM/FGMlib.c`+`.h`**: Pure C library. `readFGM()` parses a `.fgm` binary file into a `FGM` struct (pressure, control-variable grid sizes, variable names, raw float data). `lookupFGM_2D()` performs bilinear interpolation over two control variables.
+- **`FGM/FGMlib.c`+`.h`**: Pure C library. `readFGM()` parses a `.fgm` ascii file into a `FGM` struct (pressure, control-variable grid sizes, variable names, raw float data). `lookupFGM_2D()` performs bilinear interpolation over two control variables.
 - **`Table/FGMTable.C`+`.H`**: C++ singleton factory. `FGMTable::getFGMInstance(fileName)` loads the `.fgm` table once per node using an MPI shared-memory window (`MPI_Win_allocate_shared`), serialises/deserialises the `FGM` struct across ranks so only rank 0 reads the file. Returns a shared `FGM*` pointer usable by all local MPI ranks.
 
 ### `src/combustionModel` — FGM model hierarchy
