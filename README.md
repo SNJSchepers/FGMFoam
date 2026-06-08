@@ -90,7 +90,7 @@ PIMPLE-based compressible reactive solver. Per time step:
 1. **Momentum equation** (`UEqn.H`)
 2. **Combustion** — `combustion->correct()` (Yc and ht transport + FGM table lookup)
 3. **Pressure corrector loop** (`pEqn.H` or `pcEqn.H` for consistent PIMPLE)
-4. **Turbulence correction** — note: no sub-grid scale model for the turbulence-chemistry interaction is included yet; a warning is printed if the turbulence model is not `Laminar`
+4. **Turbulence correction** — note: no sub-grid scale model for the turbulence-chemistry interaction is included yet; a warning is printed if the turbulence model is not `laminar`
 
 ### FGM table (`tables/database.fgm`)
 
@@ -107,7 +107,7 @@ Binary table read by `FGMlib`. The table is indexed by two control variables (Yc
 ## Known limitations
 
 - **Fuel support:** Only premixed methane–air flames (`FGM_PM_CH4_HL`) are currently implemented. Hydrogen combustion support is under active development; note that accurate hydrogen flame modelling requires accounting for preferential diffusion effects (non-unity Lewis numbers), which are not yet included.
-- **Turbulence modelling:** No sub-grid scale (SGS) turbulence-chemistry (TCI) interaction model is included. The solver will print a warning if the turbulence model is not set to `Laminar`. SGS TCI support is planned.
+- **Turbulence modelling:** No sub-grid scale (SGS) turbulence-chemistry (TCI) interaction model is included. The solver will print a warning if the turbulence model is not set to `laminar`. SGS TCI support is planned.
 - **Dimensionality:** The FGM table lookup is currently limited to two control variables (2D interpolation). Extension to higher-dimensional tables is not yet supported.
 - **OpenFOAM branch:** Only the OpenFOAM-com (ESI/OpenCFD) branch is supported. Compatibility with the OpenFOAM.org (Foundation) branch is not guaranteed.
 
