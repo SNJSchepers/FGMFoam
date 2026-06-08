@@ -94,7 +94,7 @@ PIMPLE-based compressible reactive solver. Per time step:
 
 ### FGM table (`tables/database.fgm`)
 
-Binary table read by `FGMlib`. The table is indexed by two control variables (Yc, ht for the premixed CH4 model) and stores all dependent thermo and species fields. The test cases copy this table to `constant/lookUp/database.fgm` at run time.
+Ascii table read by `FGMlib`. The table is indexed by two control variables (Yc, ht for the premixed CH4 model) and stores all dependent thermo and species fields. The test cases copy this table to `constant/lookUp/database.fgm` at run time.
 
 ## Adding a new FGM model
 
