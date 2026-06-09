@@ -6,7 +6,7 @@
 
 ## Overview
 
-FGMFoam is an OpenFOAM combustion solver using Flamelet Generated Manifolds (FGM). It is developed by Stijn Schepers at Eindhoven University of Technology and built on top of OpenFOAM-com (ESI/OpenCFD branch).
+FGMFoam is an OpenFOAM combustion solver using Flamelet Generated Manifolds (FGM) [1]. It is developed by Stijn Schepers at Eindhoven University of Technology and built on top of OpenFOAM-com (ESI/OpenCFD branch).
 
 FGM is a tabulated chemistry approach that reduces the computational cost of combustion simulations by pre-computing the flame chemistry on a low-dimensional manifold, parameterised by a small set of control variables such as a progress variable and enthalpy. At runtime, all thermochemical quantities are retrieved from the pre-computed table rather than solved through detailed chemistry, making industrial-scale combustion simulations feasible.
 
@@ -158,3 +158,7 @@ If you use FGMFoam in your research, please cite the following paper, in which t
 ## License
 
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+
+## References
+
+[1] J. A. van Oijen, A. Donini, R. J. Bastiaans, J. H. ten Thije Boonkkamp, L. P. de Goey, "State-of-the-art in premixed combustion modeling using flamelet generated manifolds," *Progress in Energy and Combustion Science*, 57, 30–74, 2016. https://doi.org/10.1016/j.pecs.2016.07.001
