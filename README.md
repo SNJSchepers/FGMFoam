@@ -10,6 +10,8 @@ FGMFoam is an OpenFOAM combustion solver using Flamelet Generated Manifolds (FGM
 
 FGM is a tabulated chemistry approach that reduces the computational cost of combustion simulations by pre-computing the flame chemistry on a low-dimensional manifold, parameterised by a small set of control variables such as a progress variable and enthalpy. At runtime, all thermochemical quantities are retrieved from the pre-computed table rather than solved through detailed chemistry, making industrial-scale combustion simulations feasible.
 
+FGMFoam is designed as a modular framework: all FGM-related functionality — field management, control variable transport equations, and table lookup — is self-contained in a single library with no complex cross-dependencies. Multiple FGM models can coexist in the same solver and are selected at runtime through the input files, making it straightforward to extend the framework with new FGM models for your own research without modifying the rest of the codebase.
+
 ## Prerequisites
 
 | Requirement | Version / Notes |
