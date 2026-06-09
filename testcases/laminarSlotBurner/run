@@ -17,7 +17,7 @@ Yc_u=0.0                    # [-]
 Yc_b=2.444368462162917e-03  # [-]
 ht=-1.805951297124500e+05   # [J/kg]
 
-nProcs=8            # [-]
+nProcs=4            # [-]
 simtime=0.1         # [s]
 simtimestep=1.0e-5  # [s]
 simwritesteps=100   # [-]
