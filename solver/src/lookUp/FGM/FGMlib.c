@@ -77,9 +77,6 @@ FGM * readFGM (const char filename[])
         fprintf(stderr, "Error: Failed to read Ncv\n");
         exit(EXIT_FAILURE);
     }
-    
-    // fscanf(fid,"%i",&Ncv);
-    // printf("Ncv = %i\n",Ncv);
   
     /* Read space for the data size */
     Ngrid = (int *)malloc(sizeof(int) * Ncv);
@@ -126,8 +123,6 @@ FGM * readFGM (const char filename[])
             fprintf(stderr, "Error: Failed to read varname[%d] from FGM file\n", j);
             exit(EXIT_FAILURE);
         }
-        // fscanf(fid,"%s",varname[j]);
-        // printf("%s\n",varname[j]);
     }
   
     /* Allocate space for the data */
@@ -144,7 +139,6 @@ FGM * readFGM (const char filename[])
     }
     for (i = 0; i < Ntotal; i++) {
         for (j = 0; j < Nvar; j++) {
-            // fscanf(fid,"%f",&f);
             if (fscanf(fid,"%f",&f) != 1) {
                 fprintf(stderr, "Error: Failed to read data[%d][%d] from FGM file\n", i, j);
                 exit(EXIT_FAILURE);
