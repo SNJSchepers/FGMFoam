@@ -53,6 +53,7 @@ License
 #include "IOstreams.H"
 #include "error.H"
 #include <unordered_map>
+#include <unordered_set>
 #include <string>
 
 
@@ -61,10 +62,12 @@ namespace Foam
     class FGMTable
     {
     private:
-        static std::unordered_map<std::string, FGM*> fgmInstances_;
-        static std::unordered_map<std::string, MPI_Win> shmWins_;
-        static std::unordered_map<std::string, char*> shmBuffers_;
-        static std::unordered_map<std::string, int> shmBufferSizes_;
+
+        static std::unordered_map<std::string, FGM*>*    fgmInstances_;
+        static std::unordered_map<std::string, MPI_Win>* shmWins_;
+        static std::unordered_map<std::string, char*>*   shmBuffers_;
+        static std::unordered_map<std::string, int>*     shmBufferSizes_;
+        static std::unordered_set<FGM*>*                 ownedInstances_;
 
         // Private constructor to prevent instantiation
         FGMTable();

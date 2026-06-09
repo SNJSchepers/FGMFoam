@@ -57,6 +57,7 @@ The `run` scripts:
 Logs are written to `log.blockMesh`, `log.setFields`, `log.decomposePar`, `log.FGMFoam`, `log.reconstructPar`.
 
 > **Note:** The number of processors is controlled by the `nProcs` variable at the top of the `run` script, and is set to 4 by default.
+> **Note:** The included test cases use a methane–air FGM table at an equivalence ratio of φ = 0.7. To simulate other fuels or conditions, replace `tables/database.fgm` with a table generated for your flame configuration.
 
 ## Architecture
 
@@ -66,7 +67,7 @@ Logs are written to `log.blockMesh`, `log.setFields`, `log.decomposePar`, `log.F
 FGMFoam (solver app)
     └── CombustionModel<psiReactionThermo>   [OpenFOAM interface]
             └── FGM<ReactionThermo>          [selector — reads combustionProperties]
-                    └── FGM_PM_CH4_HL        [concrete model: premixed CH4 + heat loss]
+                    └── FGM_PM_UL_NA         [concrete model: premixed + non-adiabatic effects]
                             └── FGMTable     [MPI shared-memory table manager]
                                     └── FGMlib.c  [pure-C reader + 2D interpolation]
 ```
@@ -79,8 +80,8 @@ FGMFoam (solver app)
 ### `src/combustionModel` — FGM model hierarchy
 
 - **`combustionModel/`** and **`CombustionModel/`**: Copied from OpenFOAM with no modifications; provide the base class and template selector infrastructure.
-- **`FGM/FGM/FGM.C`+`.H`**: Selector. Reads `constant/combustionProperties` (`FGMCoeffs { flameType; fuel; heatloss; subGridModel; }`) and delegates to the matching concrete model via OpenFOAM's run-time selection.
-- **`FGM/FGM_PM_CH4_HL/`**: Currently the only concrete model — premixed methane flame with heat loss. Control variables are `Yc` (progress variable) and `ht` (total enthalpy). Each time step `correct()` calls `solve()` (transports Yc and ht) then `update()` (looks up T, mu, cp, lambda, rho, species mass fractions, HeatRelease from the FGM table and writes them back to the thermo fields).
+- **`FGM/FGM/FGM.C`+`.H`**: Selector. Reads `constant/combustionProperties` (`FGMCoeffs { flameType; transportModel; adiabatic; subGridModel; }`) and delegates to the matching concrete model via OpenFOAM's run-time selection.
+- **`FGM/FGM_PM_UL_NA/`**: Currently the only concrete model — premixed flame with non-adiabatic effects and unity Lewis transport. Control variables are `Yc` (progress variable) and `ht` (total enthalpy). Each time step `correct()` calls `solve()` (transports Yc and ht) then `update()` (looks up T, mu, cp, lambda, rho, species mass fractions, HeatRelease from the FGM table and writes them back to the thermo fields).
 
 ### `src/lookUpBoundaryCondition` — custom boundary condition
 
@@ -96,22 +97,39 @@ PIMPLE-based compressible reactive solver. Per time step:
 
 ### FGM table (`tables/database.fgm`)
 
-Ascii table read by `FGMlib`. The table is indexed by two control variables (Yc, ht for the premixed CH4 model) and stores all dependent thermo and species fields. The test cases copy this table to `constant/lookUp/database.fgm` at run time.
+ASCII table read by `FGMlib`. The format uses keyword-delimited sections:
+
+```text
+[FGM]
+NDCL
+[PRESSURE]     101325        ← operating pressure in Pa
+[DIMENSION]    2             ← number of control variables
+[DATASIZE]     250 100       ← grid points per control variable (25000 rows total)
+[VARIABLES]    16            ← number of variables, followed by their names
+[END]
+[DATA]                       ← one row per table point, each row containing all Nvar values
+```
+
+Each row in `[DATA]` contains 16 space-separated floats corresponding to the variables in order: `CV1`, `CV2`, `SOURCE_CV1`, `OH`, `H2`, `H2O`, `CH4`, `CO2`, `CO`, `O2`, `DENSITY`, `TEMPERATURE`, `CP`, `CONDUCTIVITY`, `VISCOSITY`, `HEATRELEASE`. The table is stored in row-major order with CV1 (progress variable Yc) as the fast index and CV2 (total enthalpy ht) as the slow index.
+
+The included `database.fgm` is a 250 × 100 table for a methane–air flame at φ = 0.7 and p = 101325 Pa, generated with Chem1D. Any one-dimensional flame solver capable of producing FGM manifolds can be used to generate compatible tables, provided the output is converted to the format above.
 
 ## Adding a new FGM model
 
-1. Copy `solver/src/combustionModel/FGM/FGM_PM_CH4_HL/` to `solver/src/combustionModel/FGM/YOURMODEL/`
-2. Rename all files and every occurrence of `FGM_PM_CH4_HL` to `YOURMODEL`
+1. Copy `solver/src/combustionModel/FGM/FGM_PM_UL_NA/` to `solver/src/combustionModel/FGM/YOURMODEL/`
+2. Rename all files and every occurrence of `FGM_PM_UL_NA` to `YOURMODEL`
 3. Add `#include "YOURMODEL.H"` in `solver/src/combustionModel/FGM/FGM/FGM.H`
 4. Add `FGM/YOURMODEL/YOURMODELs.C` to `solver/src/combustionModel/Make/files`
 5. Rebuild `src/combustionModel/`
 
 ## Known limitations
 
-- **Fuel support:** Only premixed methane–air flames (`FGM_PM_CH4_HL`) are currently implemented. Hydrogen combustion support is under active development; note that accurate hydrogen flame modelling requires accounting for preferential diffusion effects (non-unity Lewis numbers), which are not yet included.
+- **Fuel support:** Only premixed flames with unity Lewis transport (`FGM_PM_UL_NA`) are currently implemented. Hydrogen combustion support is under active development; note that accurate hydrogen flame modelling requires accounting for preferential diffusion effects (non-unity Lewis numbers), which are not yet included.
 - **Turbulence modelling:** No sub-grid scale (SGS) turbulence-chemistry (TCI) interaction model is included. The solver will print a warning if the turbulence model is not set to `laminar`. SGS TCI support is planned.
 - **Dimensionality:** The FGM table lookup is currently limited to two control variables (2D interpolation). Extension to higher-dimensional tables is not yet supported.
+- **MPI exit crash (cosmetic):** When running in parallel, the solver may print `malloc_consolidate(): unaligned fastbin chunk detected` and MPI abort messages at the end of a completed simulation. This is a known issue originating in OpenFOAM's static destructor ordering during MPI shutdown and **does not affect simulation results or output**. The job will report `Primary job terminated normally` before the error messages appear.
 - **OpenFOAM branch:** Only the OpenFOAM-com (ESI/OpenCFD) branch is supported. Compatibility with the OpenFOAM.org (Foundation) branch is not guaranteed.
+
 
 ## Citation
 

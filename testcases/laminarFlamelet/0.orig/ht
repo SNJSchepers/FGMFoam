@@ -25,9 +25,6 @@ boundaryField
     closed
     {
         type            zeroGradient;
-        //type            lookUpEnthalpy;
-        //h0              $internalField;
-        //value           $internalField;
     }
     open
     {

@@ -41,7 +41,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::combustionModels::FGM_PM_CH4_HL
+    Foam::combustionModels::FGM_PM_UL_NA
 
 Group
     grpCombustionModels
@@ -50,12 +50,12 @@ Description
     Dummy combustion model for 'no combustion'
 
 SourceFiles
-    FGM_PM_CH4_HL.C
+    FGM_PM_UL_NA.C
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef FGM_PM_CH4_HL_H
-#define FGM_PM_CH4_HL_H
+#ifndef FGM_PM_UL_NA_H
+#define FGM_PM_UL_NA_H
 
 #include "ThermoCombustion.H"
 #include "fvOptions.H"
@@ -73,11 +73,11 @@ namespace combustionModels
 {
 
 /*---------------------------------------------------------------------------*\
-                        Class FGM_PM_CH4_HL Declaration
+                        Class FGM_PM_UL_NA Declaration
 \*---------------------------------------------------------------------------*/
 
 template<class ReactionThermo>
-class FGM_PM_CH4_HL
+class FGM_PM_UL_NA
 :
     public ThermoCombustion<ReactionThermo>
 {
@@ -86,7 +86,7 @@ protected:
 
     // Protected data
 
-        // Control variable related variables
+        // FGM fields
             
 			//- Progress variable
             volScalarField Yc_;
@@ -148,6 +148,11 @@ protected:
             int iHeatRelease;
             int irho;
 
+        // Other
+
+            //- Turbulent Schmidt Number
+            scalar Sct_;
+
     // Protected Member Functions
 
         //- solve the control variable transport equations
@@ -160,13 +165,13 @@ protected:
 public:
 
     //- Runtime type information
-    TypeName("FGM_PM_CH4_HL");
+    TypeName("FGM_PM_UL_NA");
 
 
     // Constructors
 
         //- Construct from components
-        FGM_PM_CH4_HL
+        FGM_PM_UL_NA
         (
             const word& modelType,
             ReactionThermo& thermo,
@@ -176,7 +181,7 @@ public:
 
 
     //- Destructor
-    virtual ~FGM_PM_CH4_HL();
+    virtual ~FGM_PM_UL_NA();
 
 
     // Member Functions
@@ -201,7 +206,7 @@ public:
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 #ifdef NoRepository
-    #include "FGM_PM_CH4_HL.C"
+    #include "FGM_PM_UL_NA.C"
 #endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

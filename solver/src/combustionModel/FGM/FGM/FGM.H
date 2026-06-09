@@ -52,7 +52,7 @@ SourceFiles
 #ifndef FGM_H
 #define FGM_H
 
-#include "FGM_PM_CH4_HL.H"
+#include "FGM_PM_UL_NA.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

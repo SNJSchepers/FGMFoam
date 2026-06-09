@@ -20,10 +20,10 @@ combustionModel  FGM;
 // Make sure that the settings are in line with the supplied FGM table in lookUp/database.fgm
 FGMCoeffs
 {
-    flameType    premixed;
-    fuel         methane;
-    heatloss     yes;
-    subGridModel none;
+    flameType      premixed;
+    transportModel unityLewis;
+    adiabatic      no;
+    subGridModel   none;
 }
 
 // ************************************************************************* //

@@ -60,17 +60,17 @@ Foam::combustionModels::FGM<ReactionThermo>::FGM
     const dictionary& coeffs = this->coeffs();
 
     const word flameType(coeffs.lookup("flameType"));
-    const word fuel(coeffs.lookup("fuel"));
-    const word heatloss(coeffs.lookup("heatloss"));
+    const word transportModel(coeffs.lookup("transportModel"));
+    const word adiabatic(coeffs.lookup("adiabatic"));
     const word subGridModel(coeffs.lookup("subGridModel"));
 
     if (flameType == "premixed") {
-        if (fuel == "methane") {
-            if (heatloss == "yes") {
+        if (transportModel == "unityLewis") {
+            if (adiabatic == "no") {
                 if (subGridModel == "none") {
                     fgmmodel_.reset
                     (
-                        new FGM_PM_CH4_HL<ReactionThermo>
+                        new FGM_PM_UL_NA<ReactionThermo>
                         (
                             modelType,
                             thermo,
@@ -86,14 +86,14 @@ Foam::combustionModels::FGM<ReactionThermo>::FGM
                 }
             } else {
                 FatalErrorInFunction
-                    << "Unknown heatloss option: " << heatloss << nl
-                    << "Valid options are: yes"
+                    << "Unknown adiabatic option: " << adiabatic << nl
+                    << "Valid options are: no"
                     << exit(FatalError);
             }
         } else {
             FatalErrorInFunction
-                << "Unknown fuel type: " << fuel << nl
-                << "Valid options are: methane"
+                << "Unknown transportModel option: " << transportModel << nl
+                << "Valid options are: unityLewis"
                 << exit(FatalError);
         }
     } else {

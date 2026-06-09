@@ -43,12 +43,12 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "FGM_PM_CH4_HL.H"
+#include "FGM_PM_UL_NA.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 template<class ReactionThermo>
-Foam::combustionModels::FGM_PM_CH4_HL<ReactionThermo>::FGM_PM_CH4_HL
+Foam::combustionModels::FGM_PM_UL_NA<ReactionThermo>::FGM_PM_UL_NA
 (
     const word& modelType,
     ReactionThermo& thermo,
@@ -283,13 +283,25 @@ Foam::combustionModels::FGM_PM_CH4_HL<ReactionThermo>::FGM_PM_CH4_HL
 	
     // Update the field variables with the table variables
     update();
+
+    // Read turbulent Schmidt number from combustionProperties if present, otherwise default to 0.7
+//    Sct_ = this->coeffs().subDict("turbulenceCoeffs").template lookupOrDefault<scalar>("Sct", 0.7);
+    if (this->coeffs().found("turbulenceCoeffs"))
+    {
+        Sct_ = this->coeffs().subDict("turbulenceCoeffs")
+                   .template lookupOrDefault<scalar>("Sct", 0.7);
+    }
+    else
+    {
+        Sct_ = 0.7;
+    }
 }
 
 
 // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
 
 template<class ReactionThermo>
-Foam::combustionModels::FGM_PM_CH4_HL<ReactionThermo>::~FGM_PM_CH4_HL()
+Foam::combustionModels::FGM_PM_UL_NA<ReactionThermo>::~FGM_PM_UL_NA()
 {
     FGMTable::cleanup();
 }
@@ -298,10 +310,10 @@ Foam::combustionModels::FGM_PM_CH4_HL<ReactionThermo>::~FGM_PM_CH4_HL()
 // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
 
 template<class ReactionThermo>
-void Foam::combustionModels::FGM_PM_CH4_HL<ReactionThermo>::solve()
+void Foam::combustionModels::FGM_PM_UL_NA<ReactionThermo>::solve()
 {
 
-    scalar Sct = 0.7; // Turbulent schmidt number
+ //   scalar Sct_ = 0.7; // Turbulent schmidt number
 
     const volScalarField& rho     = this->mesh().template lookupObject<volScalarField>("rho");
     const volScalarField& alpha   = this->mesh().template lookupObject<volScalarField>("alpha");
@@ -328,7 +340,7 @@ void Foam::combustionModels::FGM_PM_CH4_HL<ReactionThermo>::solve()
     (
         fvm::ddt(rho, Yc_)
       + mvConvection().fvmDiv(phi, Yc_)
-      - fvm::laplacian(alpha + this->turbulence().mut()/Sct, Yc_)
+      - fvm::laplacian(alpha + this->turbulence().mut()/Sct_, Yc_)
      ==
         sourceYc_
     );
@@ -340,14 +352,14 @@ void Foam::combustionModels::FGM_PM_CH4_HL<ReactionThermo>::solve()
     (
         fvm::ddt(rho, ht_)
       + mvConvection().fvmDiv(phi, ht_)
-      - fvm::laplacian(alpha + this->turbulence().mut()/Sct, ht_)
+      - fvm::laplacian(alpha + this->turbulence().mut()/Sct_, ht_)
     );
     htEqn.relax();
     htEqn.solve();
 }
 
 template<class ReactionThermo>
-void Foam::combustionModels::FGM_PM_CH4_HL<ReactionThermo>::update()
+void Foam::combustionModels::FGM_PM_UL_NA<ReactionThermo>::update()
 {
     const clockTime clockTime_= clockTime();
     clockTime_.timeIncrement();
@@ -468,7 +480,7 @@ void Foam::combustionModels::FGM_PM_CH4_HL<ReactionThermo>::update()
 
 
 template<class ReactionThermo>
-void Foam::combustionModels::FGM_PM_CH4_HL<ReactionThermo>::correct()
+void Foam::combustionModels::FGM_PM_UL_NA<ReactionThermo>::correct()
 {
     solve();
     update();
@@ -476,7 +488,7 @@ void Foam::combustionModels::FGM_PM_CH4_HL<ReactionThermo>::correct()
 
 template<class ReactionThermo>
 Foam::tmp<Foam::fvScalarMatrix>
-Foam::combustionModels::FGM_PM_CH4_HL<ReactionThermo>::R
+Foam::combustionModels::FGM_PM_UL_NA<ReactionThermo>::R
 (
     volScalarField& Y
 ) const
@@ -492,7 +504,7 @@ Foam::combustionModels::FGM_PM_CH4_HL<ReactionThermo>::R
 
 template<class ReactionThermo>
 Foam::tmp<Foam::volScalarField>
-Foam::combustionModels::FGM_PM_CH4_HL<ReactionThermo>::Qdot() const
+Foam::combustionModels::FGM_PM_UL_NA<ReactionThermo>::Qdot() const
 {
     return tmp<volScalarField>::New
     (

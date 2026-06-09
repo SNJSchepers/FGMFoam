@@ -46,15 +46,15 @@ License
 
 #include "psiReactionThermo.H"
 #include "rhoReactionThermo.H"
-#include "FGM_PM_CH4_HL.H"
+#include "FGM_PM_UL_NA.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-makeCombustionTypes(FGM_PM_CH4_HL, psiReactionThermo);
-makeCombustionTypes(FGM_PM_CH4_HL, rhoReactionThermo);
+makeCombustionTypes(FGM_PM_UL_NA, psiReactionThermo);
+makeCombustionTypes(FGM_PM_UL_NA, rhoReactionThermo);
 
 }
 

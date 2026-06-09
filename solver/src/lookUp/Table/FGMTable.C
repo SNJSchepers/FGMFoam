@@ -48,18 +48,19 @@ namespace Foam
 {
 
     // Static member definitions
-    std::unordered_map<std::string, FGM*> FGMTable::fgmInstances_;
-    std::unordered_map<std::string, MPI_Win> FGMTable::shmWins_;
-    std::unordered_map<std::string, char*> FGMTable::shmBuffers_;
-    std::unordered_map<std::string, int> FGMTable::shmBufferSizes_;
+    std::unordered_map<std::string, FGM*>*    FGMTable::fgmInstances_    = new std::unordered_map<std::string, FGM*>();
+    std::unordered_map<std::string, MPI_Win>* FGMTable::shmWins_         = new std::unordered_map<std::string, MPI_Win>();
+    std::unordered_map<std::string, char*>*   FGMTable::shmBuffers_      = new std::unordered_map<std::string, char*>();
+    std::unordered_map<std::string, int>*     FGMTable::shmBufferSizes_  = new std::unordered_map<std::string, int>();
+    std::unordered_set<FGM*>*                 FGMTable::ownedInstances_  = new std::unordered_set<FGM*>();
 
     FGMTable::FGMTable() {}
 
     FGM* FGMTable::getFGMInstance(const std::string& fileName)
     {
         // Return cached instance if already loaded on this rank
-        auto it = fgmInstances_.find(fileName);
-        if (it != fgmInstances_.end())
+        auto it = fgmInstances_->find(fileName);
+        if (it != fgmInstances_->end())
         {
             return it->second;
         }
@@ -74,7 +75,8 @@ namespace Foam
                  << fileName << nl << endl;
 
             FGM* localFGM = readFGM(fileName.c_str());
-            fgmInstances_[fileName] = localFGM;
+            (*fgmInstances_)[fileName] = localFGM;
+            ownedInstances_->insert(localFGM);
             return localFGM;
         }
 
@@ -96,9 +98,9 @@ namespace Foam
         MPI_Comm_rank(shmComm, &localRank);
 
         // References to per-file storage
-        MPI_Win& shmWin = shmWins_[fileName];
-        char*& shmBuffer = shmBuffers_[fileName];
-        int& shmBufferSize = shmBufferSizes_[fileName];
+        MPI_Win& shmWin = (*shmWins_)[fileName];
+        char*& shmBuffer = (*shmBuffers_)[fileName];
+        int& shmBufferSize = (*shmBufferSizes_)[fileName];
 
         if (localRank == 0)
         {
@@ -168,7 +170,7 @@ namespace Foam
         MPI_Comm_free(&shmComm);
 
         FGM* fgm = deserializeFGM(shmBuffer, shmBufferSize);
-        fgmInstances_[fileName] = fgm;
+        (*fgmInstances_)[fileName] = fgm;
 
         Info << "FGM table successfully loaded into shared memory: "
              << fileName << nl << endl;
@@ -252,29 +254,34 @@ namespace Foam
 
     void FGMTable::cleanup()
     {
-        for (auto& it : fgmInstances_)
+        for (auto& it : *fgmInstances_)
         {
-            if (it.second)
+            if (it.second && ownedInstances_->count(it.second))
             {
                 freeFGM(it.second);
-                it.second = nullptr;
             }
+            it.second = nullptr;
         }
-        fgmInstances_.clear();
+        fgmInstances_->clear();
+        ownedInstances_->clear();
 
-        for (auto& it : shmWins_)
+        for (auto& it : *shmWins_)
         {
             if (it.second != MPI_WIN_NULL)
             {
-                MPI_Win_free(&it.second);
+                int finalized = 0;
+                MPI_Finalized(&finalized);
+                if (!finalized)
+                {
+                    MPI_Win_free(&it.second);
+                }
                 it.second = MPI_WIN_NULL;
             }
         }
-        shmWins_.clear();
-
-        shmBuffers_.clear();
-        shmBufferSizes_.clear();
-    }  
+        shmWins_->clear();
+        shmBuffers_->clear();
+        shmBufferSizes_->clear();
+    }
 }
 
 // ************************************************************************* //

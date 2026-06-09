@@ -258,3 +258,4 @@ int lookupFGM_2D (FGM *fgm, float *x, float *f)
 
     return EXIT_SUCCESS;
 }
+

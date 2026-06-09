@@ -2,3 +2,4 @@ FGM/FGMlib.c
 Table/FGMTable.C
 
 LIB = $(FOAM_USER_LIBBIN)/liblookUp
+

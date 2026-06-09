@@ -24,8 +24,6 @@ boundaryField
 {
     inlet
     {
-        //type            fixedValue;
-        //value           uniform INITIALENTHALPY;
         type            lookUpEnthalpy;
         h0              $internalField;
         value           $internalField;

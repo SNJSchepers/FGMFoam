@@ -2,6 +2,6 @@ combustionModel/combustionModel.C
 CombustionModel/CombustionModel/CombustionModels.C
 
 FGM/FGM/FGMs.C
-FGM/FGM_PM_CH4_HL/FGM_PM_CH4_HLs.C
+FGM/FGM_PM_UL_NA/FGM_PM_UL_NAs.C
 
 LIB = $(FOAM_USER_LIBBIN)/libcombustionModelFGM
