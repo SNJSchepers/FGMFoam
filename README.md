@@ -130,7 +130,7 @@ The included `database.fgm` is a 250 × 100 table for a methane–air flame at �
 
 ## Known limitations
 
-- **Fuel support:** Only premixed flames with unity Lewis transport (`FGM_PM_UL_NA`) are currently implemented. Hydrogen combustion support is under active development; note that accurate hydrogen flame modelling requires accounting for preferential diffusion effects (non-unity Lewis numbers), which are not yet included.
+- **Transport models:** Only premixed flames with unity Lewis transport (`FGM_PM_UL_NA`) are currently implemented. More advanced transport models accounting for preferential and differential diffusion effects, essential for accurate hydrogen combustion modelling, are under active development.
 - **Turbulence modelling:** No sub-grid scale (SGS) turbulence-chemistry (TCI) interaction model is included. The solver will print a warning if the turbulence model is not set to `laminar`. SGS TCI support is planned.
 - **Dimensionality:** The FGM table lookup is currently limited to two control variables (2D interpolation). Extension to higher-dimensional tables is not yet supported.
 - **MPI exit crash (cosmetic):** When running in parallel, the solver may print `malloc_consolidate(): unaligned fastbin chunk detected` and MPI abort messages at the end of a completed simulation. This is a known issue originating in OpenFOAM's static destructor ordering during MPI shutdown and **does not affect simulation results or output**. The job will report `Primary job terminated normally` before the error messages appear.
