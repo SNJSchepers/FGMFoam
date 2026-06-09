@@ -103,14 +103,17 @@ PIMPLE-based compressible reactive solver. Per time step:
 ASCII table read by `FGMlib`. The format uses keyword-delimited sections:
 
 ```text
-[FGM]
-NDCL
-[PRESSURE]     101325        ← operating pressure in Pa
-[DIMENSION]    2             ← number of control variables
-[DATASIZE]     250 100       ← grid points per control variable (25000 rows total)
-[VARIABLES]    16            ← number of variables, followed by their names
+[PRESSURE]     
+101325        ← operating pressure in Pa
+[DIMENSION]    
+2             ← number of control variables
+[DATASIZE]     
+250 100       ← grid points per control variable (25000 rows total)
+[VARIABLES]    
+16            ← number of variables, followed by their names
 [END]
-[DATA]                       ← one row per table point, each row containing all Nvar values
+[DATA]       
+              ← one row per table point, each row containing all Nvar values
 ```
 
 Each row in `[DATA]` contains 16 space-separated floats corresponding to the variables in order: `CV1`, `CV2`, `SOURCE_CV1`, `OH`, `H2`, `H2O`, `CH4`, `CO2`, `CO`, `O2`, `DENSITY`, `TEMPERATURE`, `CP`, `CONDUCTIVITY`, `VISCOSITY`, `HEATRELEASE`. The table is stored in row-major order with CV1 (progress variable Yc) as the fast index and CV2 (total enthalpy ht) as the slow index.
