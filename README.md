@@ -96,7 +96,7 @@ PIMPLE-based compressible reactive solver. Per time step:
 1. **Momentum equation** (`UEqn.H`)
 2. **Combustion** — `combustion->correct()` (Yc and ht transport + FGM table lookup)
 3. **Pressure corrector loop** (`pEqn.H` or `pcEqn.H` for consistent PIMPLE)
-4. **Turbulence correction** — note: no sub-grid scale model for the turbulence-chemistry interaction is included yet; a warning is printed if the turbulence model is not `laminar`
+4. **Turbulence correction** — turbulent transport of the control variables is included via the gradient diffusion hypothesis, but no sub-grid scale turbulence-chemistry interaction (TCI) model is included yet.
 
 ### FGM table (`tables/database.fgm`)
 
