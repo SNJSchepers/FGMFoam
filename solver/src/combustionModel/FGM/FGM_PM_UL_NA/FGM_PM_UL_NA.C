@@ -228,7 +228,6 @@ Foam::combustionModels::FGM_PM_UL_NA<ReactionThermo>::FGM_PM_UL_NA
         delete[] variables_;
     }
 
-    // fgm_ = FGM_CL2RLTable::getFGMInstance();
     fgm_ = FGMTable::getFGMInstance("constant/lookUp/database.fgm");
 	
 	// Initialize arrays with sizes obtained from the FGM table
@@ -285,7 +284,6 @@ Foam::combustionModels::FGM_PM_UL_NA<ReactionThermo>::FGM_PM_UL_NA
     update();
 
     // Read turbulent Schmidt number from combustionProperties if present, otherwise default to 0.7
-//    Sct_ = this->coeffs().subDict("turbulenceCoeffs").template lookupOrDefault<scalar>("Sct", 0.7);
     if (this->coeffs().found("turbulenceCoeffs"))
     {
         Sct_ = this->coeffs().subDict("turbulenceCoeffs")
@@ -312,14 +310,13 @@ Foam::combustionModels::FGM_PM_UL_NA<ReactionThermo>::~FGM_PM_UL_NA()
 template<class ReactionThermo>
 void Foam::combustionModels::FGM_PM_UL_NA<ReactionThermo>::solve()
 {
-
- //   scalar Sct_ = 0.7; // Turbulent schmidt number
-
+    
+    // Access to fields
     const volScalarField& rho     = this->mesh().template lookupObject<volScalarField>("rho");
     const volScalarField& alpha   = this->mesh().template lookupObject<volScalarField>("alpha");
     const surfaceScalarField& phi = this->mesh().template lookupObject<surfaceScalarField>("phi");
 
-    //- Field table for multivariate interpolation of control variables
+    // Field table for multivariate interpolation of control variables
     multivariateSurfaceInterpolationScheme<scalar>::fieldTable fields;
 
     // Add fields to the list for convection scheme
@@ -347,7 +344,7 @@ void Foam::combustionModels::FGM_PM_UL_NA<ReactionThermo>::solve()
     YcEqn.relax();
     YcEqn.solve();
 
-    // Solve the mixture fraction equation
+    // Solve the enthalpy equation
     fvScalarMatrix htEqn
     (
         fvm::ddt(rho, ht_)
