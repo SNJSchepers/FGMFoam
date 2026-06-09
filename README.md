@@ -68,10 +68,10 @@ Logs are written to `log.blockMesh`, `log.setFields`, `log.decomposePar`, `log.F
 
 ```
 FGMFoam (solver app)
-    └── CombustionModel<psiReactionThermo>   [OpenFOAM interface]
-            └── FGM<ReactionThermo>          [selector — reads combustionProperties]
-                    └── FGM_PM_UL_NA         [concrete model: premixed + non-adiabatic effects]
-                            └── FGMTable     [MPI shared-memory table manager]
+    └── CombustionModel<psiReactionThermo>        [OpenFOAM interface]
+            └── FGM<ReactionThermo>               [selector — reads combustionProperties]
+                    └── FGM_PM_UL_NA              [concrete model: premixed + non-adiabatic effects]
+                            └── FGMTable          [MPI shared-memory table manager]
                                     └── FGMlib.c  [pure-C reader + 2D interpolation]
 ```
 
