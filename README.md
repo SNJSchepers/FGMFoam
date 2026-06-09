@@ -57,6 +57,7 @@ The `run` scripts:
 Logs are written to `log.blockMesh`, `log.setFields`, `log.decomposePar`, `log.FGMFoam`, `log.reconstructPar`.
 
 > **Note:** The number of processors is controlled by the `nProcs` variable at the top of the `run` script, and is set to 4 by default.
+
 > **Note:** The included test cases use a methane–air FGM table at an equivalence ratio of φ = 0.7. To simulate other fuels or conditions, replace `tables/database.fgm` with a table generated for your flame configuration.
 
 ## Architecture
