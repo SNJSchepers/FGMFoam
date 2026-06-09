@@ -118,7 +118,7 @@ ASCII table read by `FGMlib`. The format uses keyword-delimited sections:
 
 Each row in `[DATA]` contains 16 space-separated floats corresponding to the variables in order: `CV1`, `CV2`, `SOURCE_CV1`, `OH`, `H2`, `H2O`, `CH4`, `CO2`, `CO`, `O2`, `DENSITY`, `TEMPERATURE`, `CP`, `CONDUCTIVITY`, `VISCOSITY`, `HEATRELEASE`. The table is stored in row-major order with CV1 (progress variable Yc) as the fast index and CV2 (total enthalpy ht) as the slow index.
 
-The included `database.fgm` is a 250 × 100 table for a methane–air flame at φ = 0.7 and p = 101325 Pa, generated with Chem1D. Any one-dimensional flame solver capable of producing FGM manifolds can be used to generate compatible tables, provided the output is converted to the format above.
+The included `database.fgm` is a 250 × 100 table for a methane–air flame at φ = 0.7 and p = 101325 Pa, generated with Chem1D. Any one-dimensional flame solver can be used to generate compatible tables, provided the output is converted to the format above.
 
 ## Adding a new FGM model
 
