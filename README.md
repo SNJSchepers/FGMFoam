@@ -1,7 +1,7 @@
 # FGMFoam
 
 ![OpenFOAM v2506](https://img.shields.io/badge/OpenFOAM-v2506-blue?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyeiIvPjwvc3ZnPg==)
-![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
+![License: GPLv3](https://img.shields.io/badge/License-GPLv3-blue.svg)
 ![Institution](https://img.shields.io/badge/Institution-TU%2Fe-red)
 
 ## Overview
