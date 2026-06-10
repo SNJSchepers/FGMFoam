@@ -149,7 +149,7 @@ If you use FGMFoam in your research, please cite the following paper, in which t
   volume  = {280},
   year    = {2025},
   month   = oct,
-  doi     = {10.1016/j.combustflame.2025.113983}
+  doi     = {10.1016/j.combustflame.2025.114332}
 }
 ```
 
