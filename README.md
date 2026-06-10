@@ -157,7 +157,7 @@ If you use FGMFoam in your research, please cite the following paper, in which t
 
 ## License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GNU General Public License v3.0 — see the [LICENSE](https://github.com/SNJSchepers/FGMFoam/blob/main/LICENSE) file for details.
 
 ## References
 
