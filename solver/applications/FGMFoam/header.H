@@ -11,11 +11,10 @@ Info<< nl
     << "FGMFoam - Combustion solver using Flamelet Generated Manifolds\n"
     << "Developed by Stijn Schepers - Eindhoven University of Technology\n"
     << "\n"
-    << "FGMFoam is developed for research and experimental purposes.\n"
-    << "Use, modification, and redistribution are subject to the\n"
-    << "applicable OpenFOAM license terms.\n"
+    << "FGMFoam is free software: you can redistribute it and/or modify\n"
+    << "it under the terms of the GNU General Public License as published\n"
+    << "by the Free Software Foundation, either version 3 of the License,\n"
+    << "or (at your option) any later version.\n"
     << "\n"
     << "\\*---------------------------------------------------------------------------*/\n"
-    << nl << endl;
-
-    
+    << nl << endl; 

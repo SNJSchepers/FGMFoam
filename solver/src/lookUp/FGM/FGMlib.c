@@ -10,9 +10,10 @@
 FGMFoam - Combustion solver using Flamelet Generated Manifolds 
 Developed by Stijn Schepers - Eindhoven University of Technology
 
-FGMFoam is developed for research and experimental purposes.
-Use, modification, and redistribution are subject to the
-applicable OpenFOAM license terms.
+FGMFoam is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published
+by the Free Software Foundation, either version 3 of the License,
+or (at your option) any later version.
 
 \*---------------------------------------------------------------------------*/
 
