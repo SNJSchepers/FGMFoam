@@ -1355,7 +1355,8 @@ class ChatAgent:
             dropped += 1
         if dropped:
             self._emit(f"dropped the {dropped} oldest turn(s) to fit the "
-                       f"{window}-token context window")
+                       f"{window}-token context window; the model no longer sees "
+                       "them, so repeat anything it still needs in one message")
         return history
 
     def _complete_pending_campaign(self, pending: dict[str, Any],
@@ -1441,7 +1442,7 @@ class ChatAgent:
         self.history.append({"role": "user", "content": user_input})
         try:
             return self._run_turn(user_input)
-        except Exception:
+        except BaseException:   # also a cancel (KeyboardInterrupt from Esc/Ctrl-C)
             del self.history[snapshot:]
             raise
 

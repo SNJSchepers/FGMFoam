@@ -112,6 +112,61 @@ BANNER = r"""
 """
 
 
+class _CancelOnEsc:
+    """While a request runs, pressing Esc cancels it (as Ctrl-C does).
+
+    A thread puts the terminal in cbreak mode (no line buffering, no echo) and
+    watches for a lone Esc byte; it then sends this process SIGINT, so even a
+    blocking network read is interrupted, and the REPL drops the turn. Arrow keys
+    also start with Esc but are followed at once by more bytes, so they do not
+    cancel. Only on a real terminal with termios (Linux, macOS, WSL); elsewhere
+    Ctrl-C still cancels.
+    """
+
+    def __enter__(self) -> "_CancelOnEsc":
+        self._saved = None
+        try:
+            import termios
+            import threading
+            import tty
+            if not sys.stdin.isatty():
+                return self
+            self._fd = sys.stdin.fileno()
+            self._saved = termios.tcgetattr(self._fd)
+            tty.setcbreak(self._fd)
+        except (ImportError, OSError, ValueError):
+            self._saved = None
+            return self
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._watch, daemon=True)
+        self._thread.start()
+        return self
+
+    def _watch(self) -> None:
+        import os
+        import select
+        import signal
+        while not self._stop.is_set():
+            ready, _, _ = select.select([self._fd], [], [], 0.1)
+            if not ready or self._stop.is_set():
+                continue
+            if os.read(self._fd, 1) != b"\x1b":
+                continue                         # typed ahead: ignored
+            if select.select([self._fd], [], [], 0.05)[0]:
+                os.read(self._fd, 16)            # an escape sequence (arrow key)
+                continue
+            os.kill(os.getpid(), signal.SIGINT)
+            return
+
+    def __exit__(self, *exc: object) -> None:
+        if self._saved is None:
+            return
+        import termios
+        self._stop.set()
+        self._thread.join(timeout=1)
+        termios.tcsetattr(self._fd, termios.TCSADRAIN, self._saved)
+
+
 HISTORY_FILE = Path.home() / ".fgmfoam_agent_history"
 
 
@@ -338,12 +393,19 @@ def main() -> int:
             continue
         try:
             start = time.perf_counter()
-            reply = agent.ask(user_input)
+            with _CancelOnEsc():
+                reply = agent.ask(user_input)
             elapsed = time.perf_counter() - start
             print()
             render_markdown(reply)
             _show_timing(elapsed)
             print()
+        except KeyboardInterrupt:
+            # The turn was rolled back by ChatAgent.ask; anything a tool already
+            # did (a case written, a run started in the background) stays.
+            print("\n[cancelled: this request was dropped from the conversation; "
+                  "cases already built or runs already started are unaffected]\n",
+                  file=sys.stderr)
         except Exception as exc:  # noqa: BLE001 - keep the session alive on errors
             print(
                 f"\n[request failed: {_provider_error(exc)}]\n"

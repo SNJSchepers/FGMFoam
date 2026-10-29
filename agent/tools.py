@@ -137,7 +137,18 @@ def _build_case_schema() -> dict[str, Any]:
         ),
     }
     properties["confirm_unusual"] = _CONFIRM_PROPERTY
+    properties["n_steps"] = _N_STEPS_PROPERTY
     return {"type": "object", "properties": properties, "required": required}
+
+
+_N_STEPS_PROPERTY: dict[str, Any] = {
+    "type": "integer",
+    "description": (
+        "run for this many solver time steps ('run only 200 timesteps'): sets "
+        "sim_time = n_steps x the time step, computed per case after the time step "
+        "is known. Use it instead of sim_time, never together with it."
+    ),
+}
 
 
 _CONFIRM_PROPERTY: dict[str, Any] = {
@@ -427,6 +438,7 @@ TOOLS: list[dict[str, Any]] = [
                         "description": "new number of write snapshots over the run "
                         "(sets writeInterval = endTime / sim_write_steps)",
                     },
+                    "n_steps": _N_STEPS_PROPERTY,
                 },
                 "required": [],
             },
@@ -535,6 +547,7 @@ TOOLS: list[dict[str, Any]] = [
                         "when inlet velocity or plate thickness is swept.",
                     },
                     "confirm_unusual": _CONFIRM_PROPERTY,
+                    "n_steps": _N_STEPS_PROPERTY,
                     "launch": {
                         "type": "boolean",
                         "description": "false = build and save the campaign but do "
@@ -955,6 +968,36 @@ def _confirm_result(pending: list[dict[str, Any]], template: Any,
             "unusual": pending, "message": message}
 
 
+def _n_steps(args: dict[str, Any]) -> tuple[Optional[int], Optional[dict[str, Any]]]:
+    """(n_steps, error): the requested number of time steps, validated."""
+    value = args.get("n_steps")
+    if value in (None, ""):
+        return None, None
+    try:
+        n = int(float(value))
+    except (TypeError, ValueError):
+        return None, {"status": "error", "error": f"n_steps must be a whole number, got {value!r}"}
+    if n <= 0 or n != float(value):
+        return None, {"status": "error", "error": f"n_steps must be a positive whole number, got {value!r}"}
+    if args.get("sim_time") is not None:
+        return None, {"status": "error", "error": (
+            "give n_steps or sim_time, not both: n_steps sets sim_time = n_steps x "
+            "the time step")}
+    return n, None
+
+
+def _steps_to_controls(n_steps: int, timestep: float, write_steps: int) -> tuple[float, int]:
+    """(sim_time, write snapshots) for ``n_steps`` steps of ``timestep``.
+
+    The snapshot count is lowered to a divisor of ``n_steps``, so every write
+    falls on a time step (the write interval is a whole number of steps).
+    """
+    write_steps = max(1, min(int(write_steps), n_steps))
+    while n_steps % write_steps:
+        write_steps -= 1
+    return float(f"{n_steps * timestep:.12g}"), write_steps
+
+
 def unburnt_temperature_outside_table(t_inlet: float, phi: float = 0.7,
                                       p_0: Optional[float] = None) -> Optional[str]:
     """Why an unburnt mixture at ``t_inlet`` K is outside the shipped table, or None."""
@@ -1126,6 +1169,9 @@ def _run_build_case(args: dict[str, Any], session: bool = True) -> dict[str, Any
                 + ", ".join(missing)
             ),
         }
+    n_steps, step_error = _n_steps({**args, "sim_time": args.get("sim_time")})
+    if step_error:
+        return step_error
     supplied = set(params) - set(inherited)
     params = validator.apply_defaults(params, template)
     problem = template.check(params) if template.check else None
@@ -1141,10 +1187,18 @@ def _run_build_case(args: dict[str, Any], session: bool = True) -> dict[str, Any
     estimated: set[str] = set()
     dt_estimate = None
     if "sim_timestep" not in supplied:
-        dt_estimate = timestep.estimate(template.name, params, thermo)
+        # With n_steps the end time follows from the step, so the step is not
+        # snapped to the default write interval (0.4 m/s gave 3.003e-6 s).
+        dt_estimate = timestep.estimate(
+            template.name, {**params, "sim_time": None} if n_steps else params, thermo)
         if dt_estimate is not None:
-            params["sim_timestep"] = dt_estimate.timestep
+            params["sim_timestep"] = float(f"{dt_estimate.timestep:.12g}")
             estimated.add("sim_timestep")
+    if n_steps is not None:
+        # After the time step is known (estimated or given), per case.
+        params["sim_time"], params["sim_write_steps"] = _steps_to_controls(
+            n_steps, float(params["sim_timestep"]), int(params["sim_write_steps"]))
+        estimated |= {"sim_time"}
     case_dir = of_writer.prepare_case(case_name, template)
     replacements = of_writer.build_replacements(params, thermo, template)
     of_writer.patch_placeholders(case_dir, replacements, template)
@@ -1157,6 +1211,14 @@ def _run_build_case(args: dict[str, Any], session: bool = True) -> dict[str, Any
         "thermochemistry": {"Yc_u": thermo.Yc_u, "Yc_b": thermo.Yc_b, "ht": thermo.ht},
         "write_interval": params["sim_time"] / params["sim_write_steps"],
     }
+    if n_steps is not None:
+        result["n_steps"] = {
+            "n_steps": n_steps, "sim_time": params["sim_time"],
+            "sim_timestep": params["sim_timestep"],
+            "sim_write_steps": params["sim_write_steps"],
+            "note": (f"sim_time = {n_steps} steps x {params['sim_timestep']:g} s = "
+                     f"{params['sim_time']:g} s"),
+        }
     # Say which run-control values were not chosen by the user, so the model
     # reports them as recommendations rather than as settings they asked for.
     defaulted = sorted(set(template.defaults) - supplied - estimated)
@@ -1307,10 +1369,16 @@ def _run_run_campaign(args: dict[str, Any]) -> dict[str, Any]:
             "options": campaign_module.cpu_options(len(values), cores),
         }
 
+    n_steps, step_error = _n_steps(args)
+    if step_error:
+        return step_error
+    if n_steps is not None and args.get("flow_throughs"):
+        return {"status": "error", "error": (
+            "give n_steps or flow_throughs, not both: each sets the simulated time")}
     base: dict[str, Any] = {
         name: args[name] for name in
         ("T_inlet", "T_plate", "inlet_velocity", "sim_time", "sim_timestep",
-         "sim_write_steps") + tuple(template.geometric)
+         "sim_write_steps", "n_steps") + tuple(template.geometric)
         if args.get(name) is not None
     }
     base.pop(variable, None)
@@ -1347,6 +1415,7 @@ def _run_run_campaign(args: dict[str, Any]) -> dict[str, Any]:
     summary = {
         "campaign": plan.name, "case_type": template.name, "variable": variable,
         "values": values, "n_cases": len(built),
+        **({"n_steps": n_steps} if n_steps is not None else {}),
         "cpu_plan": {
             "n_procs_per_case": procs, "n_concurrent_cases": concurrent,
             "physical_cores": cores, "cores_used": procs * concurrent,
@@ -1551,9 +1620,25 @@ def _run_change_settings(args: dict[str, Any]) -> dict[str, Any]:
     sim_time = args.get("sim_time")
     sim_timestep = args.get("sim_timestep")
     sim_write_steps = args.get("sim_write_steps")
+    n_steps, step_error = _n_steps(args)
+    if step_error:
+        return step_error
+    if n_steps is not None:
+        # The step is the new one if given, else the case's own.
+        current = of_writer.read_control_entries(
+            case_dir, ["deltaT", "endTime", "writeInterval"])
+        try:
+            dt = float(sim_timestep if sim_timestep is not None else current["deltaT"])
+            writes = int(sim_write_steps) if sim_write_steps is not None else round(
+                float(current["endTime"]) / float(current["writeInterval"]))
+        except (KeyError, TypeError, ValueError, ZeroDivisionError):
+            return {"status": "error",
+                    "error": "cannot apply n_steps: deltaT/endTime/writeInterval not readable"}
+        sim_time, sim_write_steps = _steps_to_controls(n_steps, dt, writes)
     if sim_time is None and sim_timestep is None and sim_write_steps is None:
         return {"status": "error",
-                "error": "nothing to change; give sim_time, sim_timestep, and/or sim_write_steps"}
+                "error": "nothing to change; give sim_time, sim_timestep, sim_write_steps "
+                         "and/or n_steps"}
 
     entries: dict[str, Any] = {}
     try:

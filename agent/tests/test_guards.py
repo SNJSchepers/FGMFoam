@@ -477,6 +477,39 @@ def test_asking_for_missing_values_is_not_flagged_as_not_applied() -> None:
     assert ("nudge", "unapplied_value", True) not in agent.guards
 
 
+def test_a_cancelled_request_leaves_no_trace_in_the_conversation() -> None:
+    # Esc (or Ctrl-C) raises KeyboardInterrupt in the middle of a turn.
+    agent = _agent(["first answer"])
+    agent.ask("What is Yc?")
+    before = list(agent.history)
+
+    def cancelled(**kwargs):
+        raise KeyboardInterrupt
+    agent.client.complete = cancelled
+    try:
+        agent.ask("Explain the table lookup in detail")
+    except KeyboardInterrupt:
+        pass
+    else:
+        raise AssertionError("the cancel must reach the REPL")
+    assert agent.history == before
+
+
+def test_n_steps_sets_the_end_time_from_each_cases_own_time_step() -> None:
+    built = _sandbox_build(**SLOT_OK, inlet_velocity=0.2, n_steps=200, case_name="steps")
+    assert built["status"] == "built", built
+    dt = built["parameters"]["sim_timestep"]
+    assert abs(built["parameters"]["sim_time"] - 200 * dt) < 1e-15
+    # Every snapshot falls on a step.
+    assert 200 % built["parameters"]["sim_write_steps"] == 0
+    changed = tools.execute_tool("change_settings", {"case_name": built["case_name"],
+                                                     "n_steps": 50})
+    assert changed["status"] == "updated"
+    assert abs(float(changed["changes"]["endTime"]["new"]) - 50 * dt) < 1e-15
+    both = _sandbox_build(**SLOT_OK, inlet_velocity=0.2, n_steps=200, sim_time=0.1)
+    assert both["status"] == "error" and "not both" in both["error"]
+
+
 def test_celsius_is_read_as_kelvin() -> None:
     text, converted = chat.celsius_to_kelvin("inlet 27 °C, plate 100 C, 0.4 m/s, 3 cases")
     assert "300.15 K (27 °C)" in text and "373.15 K (100 °C)" in text

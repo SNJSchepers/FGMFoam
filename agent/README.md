@@ -282,6 +282,7 @@ rather than in the JSON schema.
 | `sim_timestep` | float | no | 1e-5 / 2e-6 | s | fixed solver time step (`deltaT`); per case, see above |
 | `n_procs` | int | no | 4 | – | MPI processes / mesh subdomains |
 | `sim_write_steps` | int | no | 100 | – | number of write snapshots |
+| `n_steps` | int | no | – | – | run this many time steps instead of giving `sim_time`: `sim_time = n_steps × sim_timestep`, computed per case once the time step is known (so a campaign gets the same number of steps in every case); not together with `sim_time` or `flow_throughs` |
 | `p_0` | float | no | 101325 | Pa | operating/initial pressure |
 | `plate_thickness` | float | no | 3.1139e-3 | m | streamwise thickness of the plate (slot burner) |
 | `hole_pitch` | float | no | 1.24556e-2 | m | centre-to-centre distance between slots (slot burner) |
@@ -1107,6 +1108,13 @@ agent/.venv/bin/python agent/main.py
   ...runs blockMesh, setFields, decomposePar, FGMFoam, reconstructPar; reports the result...
 > exit
 ```
+
+At the prompt the arrow keys edit the line and step through earlier questions
+(kept across sessions in `~/.fgmfoam_agent_history`). **Esc** (or Ctrl-C) cancels a
+request while it is running: the request is dropped from the conversation, and
+whatever a tool already did (a case written, a run started in the background)
+stays. Both need a terminal with `readline`/`termios` (Linux, macOS, WSL); on
+native Windows, Ctrl-C still cancels.
 
 **One-shot (a single prompt on the command line):**
 

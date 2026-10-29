@@ -188,7 +188,9 @@ def build_replacements(
         "Yc_u": thermo.Yc_u,
         "Yc_b": thermo.Yc_b,
         "ht": thermo.ht,
-        "write_time": params["sim_time"] / params["sim_write_steps"],
+        # A quotient: 12 significant figures drop the float noise (6e-06, not
+        # 5.999999999999999e-06) and keep all the precision that matters.
+        "write_time": float(f"{params['sim_time'] / params['sim_write_steps']:.12g}"),
     }
     missing = [
         key for key in template.placeholders.values() if key not in sources

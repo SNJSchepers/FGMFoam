@@ -182,7 +182,10 @@ PRESETS: tuple[Preset, ...] = (
         embed_base_url=OLLAMA_BASE_URL,
         caveat=("The 3B sets up and runs cases well, but its answers to questions "
                 "about how the solver works can miss details. For those, a larger "
-                "model is recommended: /model mistral."),
+                "model is recommended: /model mistral. Its context is small (16k "
+                "tokens), so earlier turns are dropped after a few messages: give "
+                "each request complete in one message (case, values, run settings, "
+                "CPU plan) rather than spread over several."),
     ),
 )
 
