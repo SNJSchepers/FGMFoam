@@ -6,12 +6,19 @@ into the agent's knowledge base — add or correct notes here to teach the agent
 
 ## FGMFoam solution algorithm (what it solves, and in what order)
 
-FGMFoam is a compressible PIMPLE (merged PISO–SIMPLE) solver. Per time step its
-loop (`solver/applications/FGMFoam/FGMFoam.C:145-209`) does, in order:
+FGMFoam is a compressible PIMPLE (merged PISO–SIMPLE) solver, built on
+rhoPimpleFoam. Per time step its loop
+(`solver/applications/FGMFoam/FGMFoam.C:145-209`) does, in order:
 
-1. **Momentum predictor** — the momentum equation is solved for the velocity with
+1. **Continuity for the density**: on the first PIMPLE iteration the standard
+   continuity equation `ddt(rho) + div(phi) = 0` is solved for `rho` from the
+   current mass fluxes (`#include "rhoEqn.H"`, `FGMFoam.C:183-186`; the file is
+   OpenFOAM's own, from `$FOAM_SRC/finiteVolume/cfdTools/compressible/`, not part
+   of this repository). The momentum and scalar equations below use this density,
+   which keeps their transport consistent with the fluxes.
+2. **Momentum predictor**: the momentum equation is solved for the velocity with
    the current pressure gradient (`UEqn.H`, `solve(UEqn == -fvc::grad(p))`).
-2. **`combustion->correct()`** — the FGM model, which is
+3. **`combustion->correct()`**: the FGM model, which is
    `FGM_PM_UL_NA::correct()` = `solve()` then `update()`
    (`solver/src/combustionModel/FGM/FGM_PM_UL_NA/FGM_PM_UL_NA.C:481-484`):
    - `solve()` solves the **two control-variable transport equations**: the
@@ -23,30 +30,23 @@ loop (`solver/applications/FGMFoam/FGMFoam.C:145-209`) does, in order:
      compressibility `psi` (= table density / table pressure), transport
      properties (`mu`, `alpha`), species mass fractions, heat release, and the
      `Yc` source term (`FGM_PM_UL_NA.C:360-479`).
-3. **Pressure corrector loop** — the pressure equation is solved and the fluxes
+4. **Pressure corrector loop**: the pressure equation is solved and the fluxes
    and velocity are corrected (`pEqn.H`, or `pcEqn.H` for the consistent variant).
-   The density is set here as `rho = thermo.rho()` = `psi*p` (`pEqn.H:4,131`).
-4. Turbulence correction (`turbulence->correct()`), a no-op for the laminar case.
+   This pressure equation is the compressible continuity equation written for
+   `p` (with `rho = psi*p`). After it, `rhoEqn.H` is solved once more so that
+   `compressibleContinuityErrs.H` can report the continuity error, and the density
+   is then set to the thermodynamic value `rho = thermo.rho()` = `psi*p`, with
+   `psi` from the FGM table (`pEqn.H:4,131`; `FGM_PM_UL_NA.C:410`).
+5. Turbulence correction (`turbulence->correct()`), a no-op for the laminar case.
 
-The governing equations solved are: momentum (velocity U), the pressure equation
-(p), and the two control-variable transport equations (Yc and ht). Mass
-conservation (continuity) is enforced through the pressure equation — it is NOT a
-separately solved transport equation, so do not list "continuity" or "mass
-conservation" as one of the governing equations.
-
-Note on density and `rhoEqn.H`: `rhoEqn.H` is OpenFOAM's standard continuity
-equation (`ddt(rho) + div(phi) = 0`, from `$FOAM_SRC/finiteVolume/cfdTools/
-compressible/`, not a file in this repository), inherited from rhoPimpleFoam. It
-IS used, twice per time step: (1) on the first PIMPLE iteration
-(`FGMFoam.C:183-186`) it updates `rho` from the mass fluxes, and that density is
-what the momentum predictor (`UEqn.H`) and the Yc/ht transport in
-`combustion->correct()` use, which keeps the scalar transport consistent with the
-fluxes (boundedness); (2) at the end of `pEqn.H`/`pcEqn.H` it is solved again so
-`compressibleContinuityErrs.H` can report the continuity error. Each time, `rho`
-is then reset to the thermodynamic density `rho = thermo.rho()` = `psi*p`, with
-`psi` from the FGM table (`FGM_PM_UL_NA.C:410`). So the table and the pressure
-equation set the density, and the continuity equation keeps the transport
-conservative within the step.
+The governing equations are therefore: **continuity** (solved in two forms: as
+the pressure equation for `p`, and as `rhoEqn.H` for `rho`), **momentum** (`U`),
+and the two **control-variable transport equations** (`Yc` and `ht`). The `ht`
+equation is the energy equation, in total-enthalpy form; the temperature is not
+solved for but looked up from the table at (Yc, ht), and species are not
+transported either: they come from the table too. The final density of each time step comes from the table and
+the pressure (`rho = psi*p`); the solved continuity density keeps the transport
+of U, Yc and ht conservative within the step.
 
 The thermochemical state — density, temperature, transport, species — is NOT
 computed from an ideal-gas equation of state or finite-rate chemistry; it is read
