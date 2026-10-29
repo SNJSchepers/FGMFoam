@@ -510,6 +510,44 @@ def test_n_steps_sets_the_end_time_from_each_cases_own_time_step() -> None:
     assert both["status"] == "error" and "not both" in both["error"]
 
 
+def test_default_conditions_on_request_and_steps_from_the_message() -> None:
+    # The 3B's call, verbatim, but never launched here (launch=False).
+    tools.reset_session_cases()
+    request = ("Can you set up a several laminar slot burner test cases, using all "
+               "default input values (T inlet, T plate, velocity, etc.), and vary the "
+               "hole diameter between 1mm and 4mm with steps of 1 mm. The CPU plan "
+               "should be 2 CPU's per job, running 2 cases at the same time. Run them "
+               "for 200 timesteps each.")
+    agent = _agent([
+        [_call("run_campaign", {"case_type": "laminarSlotBurner", "variable": "hole_size",
+                                "values": [0.001, 0.002, 0.003, 0.004],
+                                "n_concurrent_cases": 2, "n_procs_per_case": 2,
+                                "launch": False, "campaign_name": "defaults"})],
+        "Prepared.",
+    ])
+    agent.ask(request)
+    kinds = {name for _, name, _ in agent.guards}
+    assert {"shipped_values", "stated_value"} <= kinds, agent.guards
+    result = json.loads(next(m for m in agent.history if m["role"] == "tool")["content"])
+    assert result["status"] == "prepared", result
+    assert result["n_steps"] == 200
+    assert result["shipped_values_used"] == {"T_inlet": 300.0, "T_plate": 300.0,
+                                             "inlet_velocity": 0.2}
+    case = of_writer.case_path(result["cases"][0]["case"])
+    record = json.loads((case / "agent-provenance.json").read_text())
+    assert record["parameter_sources"]["T_inlet"] == "shipped"
+    assert record["derived"]["n_timesteps"] == 200
+
+
+def test_a_campaign_without_its_conditions_names_what_is_missing_up_front() -> None:
+    result = tools.execute_tool("run_campaign", {
+        "case_type": "laminarSlotBurner", "variable": "hole_size",
+        "values": [0.002, 0.003], "launch": False})
+    assert result["status"] == "missing_parameters"
+    assert set(result["missing"]) == {"T_inlet", "T_plate", "inlet_velocity"}
+    assert "T_inlet = 300" in result["message"]        # the shipped values, offered
+
+
 def test_celsius_is_read_as_kelvin() -> None:
     text, converted = chat.celsius_to_kelvin("inlet 27 °C, plate 100 C, 0.4 m/s, 3 cases")
     assert "300.15 K (27 °C)" in text and "373.15 K (100 °C)" in text

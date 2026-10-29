@@ -60,6 +60,7 @@ CASE = CaseTemplate(
               "sim_time", "sim_timestep"),
     defaults={"sim_time": 0.1, "sim_timestep": 2.0e-6},
     extra_placeholders={"INITIALTEMPERATURE": "T_inlet"},
+    shipped={"T_inlet": 300.0},          # as testcases/laminarFlamelet/run
     sweepable=("T_inlet",),
     axis_labels={"T_inlet": "Unburnt temperature  [K]"},
     analyse=front_speed("T", "U"),

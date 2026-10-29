@@ -128,15 +128,17 @@ def _parameter_sources(
     template: CaseTemplate,
     estimated: Optional[set[str]] = None,
     inherited: Optional[set[str]] = None,
+    shipped: Optional[set[str]] = None,
 ) -> dict[str, str]:
-    """Label each parameter "user", "inherited", "estimated", "recommended" or
-    "default".
+    """Label each parameter "user", "inherited", "shipped", "estimated",
+    "recommended" or "default".
 
     The distinction is the point of the record: a reviewer needs to see which
     numbers were a deliberate choice and which the agent filled in.
     """
     estimated = estimated or set()
     inherited = inherited or set()
+    shipped = shipped or set()
     sources: dict[str, str] = {}
     for name in params:
         if name in supplied:
@@ -144,6 +146,10 @@ def _parameter_sources(
         elif name in inherited:
             # Chosen by the user for the previous case and not changed since.
             sources[name] = "inherited"
+        elif name in shipped:
+            # The template's own run-script value, used because the user asked
+            # for the default conditions.
+            sources[name] = "shipped"
         elif name in estimated:
             # Computed from the mesh and the flow for this case, not a default.
             sources[name] = "estimated"
@@ -168,6 +174,7 @@ def build_record(
     version: str,
     model: Optional[dict[str, Any]] = None,
     warnings: Optional[list[dict[str, Any]]] = None,
+    shipped: Optional[set[str]] = None,
 ) -> dict[str, Any]:
     """Assemble the provenance record for a freshly built case."""
     return {
@@ -184,7 +191,7 @@ def build_record(
         },
         "parameters": dict(params),
         "parameter_sources": _parameter_sources(
-            params, supplied, template, estimated, inherited
+            params, supplied, template, estimated, inherited, shipped
         ),
         "derived": {
             "write_interval": params["sim_time"] / params["sim_write_steps"],

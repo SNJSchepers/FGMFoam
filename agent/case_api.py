@@ -116,6 +116,10 @@ class CaseTemplate:
     velocity_scale: Optional[Callable[[dict, Any], Optional[tuple[float, str]]]] = None
     # --- pre-run checks -------------------------------------------------------
     domain_length: Optional[Callable[[dict], Optional[float]]] = None
+    # The conditions the case's own run script ships with ({"T_inlet": 300}).
+    # Used only when the user explicitly asks for the default values: required
+    # conditions are never guessed, but "use the defaults" names these.
+    shipped: dict[str, Any] = field(default_factory=dict)
     # check(params) -> why these values cannot make a valid case, or None. Hard:
     # runs on the complete parameter set (defaults applied) before anything is
     # written, e.g. a slot wider than the pitch leaves no plate to mesh.

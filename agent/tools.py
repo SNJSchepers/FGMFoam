@@ -138,7 +138,19 @@ def _build_case_schema() -> dict[str, Any]:
     }
     properties["confirm_unusual"] = _CONFIRM_PROPERTY
     properties["n_steps"] = _N_STEPS_PROPERTY
+    properties["use_shipped_values"] = _SHIPPED_PROPERTY
     return {"type": "object", "properties": properties, "required": required}
+
+
+_SHIPPED_PROPERTY: dict[str, Any] = {
+    "type": "boolean",
+    "description": (
+        "true ONLY when the user explicitly asks for the default / standard / "
+        "shipped conditions ('use the default values'). Fills each required "
+        "condition the user did not give with the value the case's own run script "
+        "ships with, and reports which. Never set it to avoid asking."
+    ),
+}
 
 
 _N_STEPS_PROPERTY: dict[str, Any] = {
@@ -548,6 +560,7 @@ TOOLS: list[dict[str, Any]] = [
                     },
                     "confirm_unusual": _CONFIRM_PROPERTY,
                     "n_steps": _N_STEPS_PROPERTY,
+                    "use_shipped_values": _SHIPPED_PROPERTY,
                     "launch": {
                         "type": "boolean",
                         "description": "false = build and save the campaign but do "
@@ -968,6 +981,15 @@ def _confirm_result(pending: list[dict[str, Any]], template: Any,
             "unusual": pending, "message": message}
 
 
+def _shipped_fill(params: dict[str, Any], template: Any, args: dict[str, Any],
+                  swept: str = "") -> dict[str, Any]:
+    """The shipped values for required conditions the user did not give, if asked."""
+    if not args.get("use_shipped_values"):
+        return {}
+    return {k: v for k, v in template.shipped.items()
+            if k in template.required and params.get(k) is None and k != swept}
+
+
 def _n_steps(args: dict[str, Any]) -> tuple[Optional[int], Optional[dict[str, Any]]]:
     """(n_steps, error): the requested number of time steps, validated."""
     value = args.get("n_steps")
@@ -1145,6 +1167,8 @@ def _run_build_case(args: dict[str, Any], session: bool = True) -> dict[str, Any
         return unit_error
     base, inherited = _inherit(params, template, args) if session else (None, {})
     params = {**inherited, **params}
+    shipped = _shipped_fill(params, template, args)
+    params = {**shipped, **params}
     # Checked before asking for anything else: a 3000 K unburnt mixture is not
     # worth collecting a velocity and a plate temperature for.
     outside = _outside_table(params, template)
@@ -1172,7 +1196,7 @@ def _run_build_case(args: dict[str, Any], session: bool = True) -> dict[str, Any
     n_steps, step_error = _n_steps({**args, "sim_time": args.get("sim_time")})
     if step_error:
         return step_error
-    supplied = set(params) - set(inherited)
+    supplied = set(params) - set(inherited) - set(shipped)
     params = validator.apply_defaults(params, template)
     problem = template.check(params) if template.check else None
     if problem:
@@ -1211,6 +1235,12 @@ def _run_build_case(args: dict[str, Any], session: bool = True) -> dict[str, Any
         "thermochemistry": {"Yc_u": thermo.Yc_u, "Yc_b": thermo.Yc_b, "ht": thermo.ht},
         "write_interval": params["sim_time"] / params["sim_write_steps"],
     }
+    if shipped:
+        result["shipped_values_used"] = {
+            "values": shipped,
+            "note": ("the user asked for the default conditions; these are the values "
+                     f"{template.name}'s own run script ships with. Tell the user."),
+        }
     if n_steps is not None:
         result["n_steps"] = {
             "n_steps": n_steps, "sim_time": params["sim_time"],
@@ -1262,6 +1292,7 @@ def _run_build_case(args: dict[str, Any], session: bool = True) -> dict[str, Any
             version=config.AGENT_VERSION,
             model=dict(_SESSION),
             warnings=warnings,
+            shipped=set(shipped),
         )
         result["provenance"] = str(provenance.write(case_dir, record).name)
     except Exception as exc:  # noqa: BLE001 - a record is not worth losing a case
@@ -1334,6 +1365,37 @@ def _run_run_campaign(args: dict[str, Any]) -> dict[str, Any]:
                 return {"status": "error", "error": "impossible geometry",
                         "message": f"{variable} = {v:g}: {problem}. Nothing was built."}
 
+    n_steps, step_error = _n_steps(args)
+    if step_error:
+        return step_error
+    if n_steps is not None and args.get("flow_throughs"):
+        return {"status": "error", "error": (
+            "give n_steps or flow_throughs, not both: each sets the simulated time")}
+    base: dict[str, Any] = {
+        name: args[name] for name in
+        ("T_inlet", "T_plate", "inlet_velocity", "sim_time", "sim_timestep",
+         "sim_write_steps", "n_steps") + tuple(template.geometric)
+        if args.get(name) is not None
+    }
+    base.pop(variable, None)
+    shipped = _shipped_fill(base, template, args, swept=validator.canonical_name(variable))
+    base.update(shipped)
+    # Checked once, before any case is built, rather than case by case.
+    missing = [k for k in validator.find_missing({**base, variable: values[0]}, template)]
+    if missing:
+        offer = {k: v for k, v in template.shipped.items() if k in missing}
+        return {
+            "status": "missing_parameters", "case_type": template.name,
+            "missing": missing,
+            "message": (
+                "Nothing was built; the campaign still needs " + ", ".join(missing)
+                + ". These conditions have no defaults: ask the user for them."
+                + (" If the user wants the conditions the case ships with, that is "
+                   + ", ".join(f"{k} = {v:g}" for k, v in offer.items())
+                   + " (call again with use_shipped_values=true once they say so)."
+                   if offer else "")),
+        }
+
     cores = runner.physical_core_count(
         config.load_config(require_key=False).physical_cores
     )
@@ -1369,19 +1431,6 @@ def _run_run_campaign(args: dict[str, Any]) -> dict[str, Any]:
             "options": campaign_module.cpu_options(len(values), cores),
         }
 
-    n_steps, step_error = _n_steps(args)
-    if step_error:
-        return step_error
-    if n_steps is not None and args.get("flow_throughs"):
-        return {"status": "error", "error": (
-            "give n_steps or flow_throughs, not both: each sets the simulated time")}
-    base: dict[str, Any] = {
-        name: args[name] for name in
-        ("T_inlet", "T_plate", "inlet_velocity", "sim_time", "sim_timestep",
-         "sim_write_steps", "n_steps") + tuple(template.geometric)
-        if args.get(name) is not None
-    }
-    base.pop(variable, None)
 
     name = campaign_module.safe_name(
         args.get("campaign_name") or f"{variable}sweep"
@@ -1397,10 +1446,13 @@ def _run_run_campaign(args: dict[str, Any]) -> dict[str, Any]:
 
     built, failed = [], []
     for entry in plan.cases:
+        # Shipped values go in as shipped (not as the user's), so each case's
+        # provenance says where they came from.
         result = _run_build_case({
             "case_type": template.name,
             "case_name": entry["case_name"],
-            **entry["params"],
+            **{k: v for k, v in entry["params"].items() if k not in shipped},
+            **({"use_shipped_values": True} if shipped else {}),
         }, session=False)
         if result.get("status") == "built":
             built.append(result["case_name"])
@@ -1416,6 +1468,7 @@ def _run_run_campaign(args: dict[str, Any]) -> dict[str, Any]:
         "campaign": plan.name, "case_type": template.name, "variable": variable,
         "values": values, "n_cases": len(built),
         **({"n_steps": n_steps} if n_steps is not None else {}),
+        **({"shipped_values_used": shipped} if shipped else {}),
         "cpu_plan": {
             "n_procs_per_case": procs, "n_concurrent_cases": concurrent,
             "physical_cores": cores, "cores_used": procs * concurrent,

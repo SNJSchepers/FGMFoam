@@ -145,6 +145,8 @@ CASE = CaseTemplate(
     velocity_scale=velocity_scale,
     domain_length=domain_length,
     check=geometry_problem,
+    # The conditions testcases/laminarSlotBurner/run ships with.
+    shipped={"T_inlet": 300.0, "T_plate": 300.0, "inlet_velocity": 0.2},
     order=0,
     keywords=("slot", "burner", "2d", "two-dimensional", "flame length",
               "flashback", "blow-off", "blow off"),

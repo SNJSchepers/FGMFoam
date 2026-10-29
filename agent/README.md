@@ -113,6 +113,8 @@ in testing:
 | A parameter value the tool cannot read (e.g. a list `[2, 3, 4]` for one case) | refused with the reason, never silently replaced by the default |
 | The reply announces "I will call …" but makes no call | the model is asked once to make the call |
 | The model fills in a required value you never gave (`T_plate=300`) | not built; it has to ask you |
+| You ask for "the default values" / "standard conditions" | the required conditions you did not give are taken from the case's own `run` script (slot burner: 300 K inlet, 300 K plate, 0.2 m/s; flamelet: 300 K), reported in the reply and labelled `shipped` in the provenance. Without that request they are never filled in |
+| "Run them for 200 timesteps" | `n_steps=200` is carried into the call, even if the model drops it |
 | A length that is clearly in mm (`plate_thickness=5`) | converted if *you* wrote "5 mm" (or "2, 3 and 4 mm"); otherwise refused with "lengths are in metres" |
 | A temperature outside 200–3000 K (`T_inlet=0.7`) | refused: a wrong unit, or a value meant for another parameter |
 | A temperature the FGM table cannot hold (an unburnt gas at 3000 K, a plate at 2500 K) | refused at once, with the table's limits (unburnt gas 250 K to about 900 K, plate 250–2271 K for the shipped table); no other values are asked for first. Also for campaign values |
@@ -1283,6 +1285,7 @@ optional:
 | `ParamSpec(..., phrases=(...))` | how people say a parameter ("slot width"), so a value stated with it is carried into the tool call |
 | `ParamSpec(..., typical=(low, high))` | the usual range of a parameter; a value outside it is built only after the user confirms it |
 | `check` | `check(params) -> reason or None`: a hard consistency check on the complete parameters (e.g. slot narrower than the pitch) |
+| `shipped` | the conditions the case's own `run` script uses, e.g. `{"T_inlet": 300.0}`; used only when the user asks for the default values |
 | `keywords` | words that show the user asked for this case (e.g. `"flamelet"`, `"slot"`), so the agent accepts this case type rather than asking which case is meant |
 
 #### Step 3: **Pick or write the measurement.** `measures.py` covers the common cases,

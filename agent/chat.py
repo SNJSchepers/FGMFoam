@@ -410,6 +410,18 @@ def _wants_series(text: str) -> bool:
 
 
 _ONE_CASE = re.compile(r"(?i)\b(?:one|single|just a|only a) (?:\w+ )?case\b")
+# "Using all default input values": the user asks for the conditions the case
+# ships with. Required conditions have no defaults and are never guessed; when
+# asked for this explicitly, the tool fills them from the case's run script.
+_ASKS_DEFAULTS = re.compile(
+    r"(?i)\b(?:default|standard|shipped|template'?s?|reference)\s+(?:input\s+)?"
+    r"(?:values?|conditions|settings|inputs?|parameters)\b"
+    r"|\b(?:use|keep|with|all)\s+(?:the\s+)?defaults?\b")
+# "Run them for 200 timesteps": a number of solver steps, carried into n_steps.
+_STEPS = re.compile(r"(?i)(?<![\w.\-])(\d+)\s*(?:time[\s-]?steps|steps)\b")
+_STEP_TOOLS: frozenset[str] = frozenset({"build_case", "run_campaign", "change_settings"})
+
+
 # The user agreeing to what the agent just proposed.
 _AGREES = re.compile(
     r"(?i)^\s*(?:yes|yeah|yep|ok(?:ay)?|sure|fine|agreed|correct|go ahead|please do|do it)\b"
@@ -1525,6 +1537,13 @@ class ChatAgent:
         # refused as invented, nine times in one turn.
         if _AGREES.search(user_input):
             said += "\n" + _previous_reply(self.history)
+        # Asked for the default conditions: the shipped values count as given.
+        asks_defaults = bool(_ASKS_DEFAULTS.search(user_input))
+        if asks_defaults:
+            said += "\n" + " ".join(f"{v:g}" for t in case_templates.TEMPLATES
+                                    for v in t.shipped.values())
+        steps_match = _STEPS.search(user_input)
+        stated_steps = int(steps_match.group(1)) if steps_match else None
         # A series asked for in the previous message is still a series now
         # ("a range of cases from 0.2 to 1 mm" -> "let's do 1, 2, 3, 4").
         series = _wants_series(user_input) or (
@@ -1662,6 +1681,17 @@ class ChatAgent:
                                        + (f" (the model passed {current[0]:g})"
                                           if current else "")):
                             args[key] = value
+                if (name in ("build_case", "run_campaign") and asks_defaults
+                        and not args.get("use_shipped_values")
+                        and self._guard("repair", "shipped_values",
+                                        "use_shipped_values=true (you asked for the "
+                                        "default conditions)")):
+                    args["use_shipped_values"] = True
+                if (name in _STEP_TOOLS and stated_steps and args.get("n_steps") is None
+                        and args.get("sim_time") is None
+                        and self._guard("repair", "stated_value",
+                                        f"n_steps={stated_steps} taken from your message")):
+                    args["n_steps"] = stated_steps
                 if (name in _ACTION_TOOLS and feasibility_question
                         and self._guard("block", "feasibility_question",
                                         f"skipped {name} (feasibility question — "

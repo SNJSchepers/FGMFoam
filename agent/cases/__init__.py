@@ -82,6 +82,9 @@ def validate(case: CaseTemplate, where: str) -> None:
         if source not in case.parameters and source not in DERIVED_VALUES:
             problems.append(f"placeholder {token} maps to {source!r}, which is not a "
                             "parameter of this case")
+    for name in case.shipped:
+        if name not in case.parameters:
+            problems.append(f"shipped value {name!r} is not a parameter of this case")
     for name in (*case.sweepable, *case.geometric):
         if name not in case.parameters:
             problems.append(f"{name!r} is sweepable/geometric but not a parameter")
