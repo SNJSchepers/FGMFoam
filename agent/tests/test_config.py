@@ -161,6 +161,20 @@ def test_existing_index_embedder_is_reused_so_switching_is_free() -> None:
     assert cfg.embed_provider == "openai"
 
 
+def test_a_local_chat_model_never_reuses_a_hosted_embedder() -> None:
+    """--model local must keep questions on the machine even when the index was
+    built with mistral-embed and the Mistral key is still set."""
+    manifest = {"embed_model": "mistral-embed", "embed_provider": "mistral"}
+    with env(manifest, MISTRAL_API_KEY="k"):
+        cfg = load_config(model="local-3b")
+    assert (cfg.embed_provider, cfg.embed_model) == ("openai", "nomic-embed-text")
+    assert cfg.embed_base_url.startswith("http://localhost")
+    # Pinned explicitly, a hosted embedder is still the user's choice.
+    with env(manifest, MISTRAL_API_KEY="k", FGM_EMBED_PROVIDER="mistral",
+             FGM_EMBED_MODEL="mistral-embed"):
+        assert load_config(model="local-3b").embed_provider == "mistral"
+
+
 def test_index_embedder_is_skipped_when_its_key_is_missing() -> None:
     """A Mistral-built index must not strand a Claude user with no Mistral key."""
     manifest = {"embed_model": "mistral-embed", "embed_provider": "mistral"}

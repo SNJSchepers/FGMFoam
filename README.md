@@ -229,13 +229,15 @@ export MISTRAL_API_KEY=your_key_here     # or ANTHROPIC_API_KEY / OPENAI_API_KEY
 agent/.venv/bin/python agent/main.py
 ```
 
-Or run it entirely on your own machine, with no key and no data leaving it
-(needs [Ollama](https://ollama.com); see
-[`agent/README.md` §2.3](agent/README.md#23-running-fully-locally-no-data-leaves-the-machine)
-for the one-time model pull):
+Or run it entirely on your own machine, with no key and no data leaving it. This
+needs [Ollama](https://ollama.com) and a one-time model pull of a few commands,
+listed at the top of
+[`agent/README.md` §2.3](agent/README.md#23-running-fully-locally-no-data-leaves-the-machine).
+Then:
 
 ```bash
-agent/.venv/bin/python agent/main.py --model local
+agent/.venv/bin/python agent/main.py --model local-3b   # 3B, fits a 4 GB GPU
+agent/.venv/bin/python agent/main.py --model local      # 7B, needs more memory
 ```
 
 On first run the agent builds its knowledge index over the solver source; that

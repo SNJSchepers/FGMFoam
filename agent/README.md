@@ -799,8 +799,21 @@ For data-sensitive work you can run the agent against a **local** OpenAI-compati
 model server, so neither your code/case files nor your questions are sent to any
 hosted API. Both the chat model **and** the embeddings then run locally.
 
-Using [Ollama](https://ollama.com) (vLLM and other OpenAI-compatible servers work
-the same way via `FGM_BASE_URL`):
+**In short**, with [Ollama](https://ollama.com) on Linux or WSL (other systems:
+the installer on ollama.com):
+
+```bash
+curl -fsSL https://ollama.com/install.sh | sh          # 1. install Ollama
+ollama pull qwen2.5:3b-instruct && ollama pull nomic-embed-text
+printf 'FROM qwen2.5:3b-instruct\nPARAMETER num_ctx 16384\n' > Modelfile.3b
+ollama create qwen2.5-3b-16k -f Modelfile.3b           # 2. a 16k-context tag
+agent/.venv/bin/python agent/main.py --model local-3b  # 3. run (builds a local index once)
+```
+
+That is the 3B, which fits a small (4 GB) GPU; for the 7B (`--model local`) use
+`qwen2.5:7b-instruct` and `qwen2.5-7b-16k` the same way, or `agent/Modelfile`.
+The steps in full, and why each is needed (vLLM and other OpenAI-compatible
+servers work the same way via `FGM_BASE_URL`):
 
 ```bash
 # 1. Install Ollama, then pull tool-calling chat model(s) and an embedding model:
@@ -835,9 +848,11 @@ ollama create qwen2.5-3b-16k  -f Modelfile.3b
 > is under the **Qwen Research licence (non-commercial)**, not Apache-2.0. Any
 > other tool-calling model works: re-tag it the same way and pass its name.
 
-On the next run the index is rebuilt automatically with the local embedder
-(switching embedding models invalidates the old vectors, so this is detected and
-handled for you). No `MISTRAL_API_KEY` is needed in this mode. Notes:
+On the first run with a local preset the index is rebuilt with the local embedder,
+even if you used a hosted model before and its key is still set: with a local chat
+model the agent never sends your questions to a hosted embedding API (unless you
+pin one with `FGM_EMBED_PROVIDER`). The rebuild takes a minute and happens once.
+No API key is needed in this mode. Notes:
 
 - The chat model **must support tool/function calling**; if an engine rejects a
   forced `tool_choice`, the agent degrades gracefully (it may answer without

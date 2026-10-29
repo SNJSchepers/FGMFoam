@@ -340,7 +340,8 @@ def _resolve_embeddings(
     strands the index on an embedder you cannot reach:
 
         1. whatever ``FGM_EMBED_*`` pins explicitly
-        2. what the existing index was built with (avoids a needless rebuild)
+        2. what the existing index was built with (avoids a needless rebuild),
+           unless the chat model is self-hosted and that embedder is not
         3. the preset's embedding fallback, or the chat provider itself
     """
     pinned_provider = raw("FGM_EMBED_PROVIDER", "embed_provider").strip().lower()
@@ -362,6 +363,12 @@ def _resolve_embeddings(
 
     indexed_model, indexed_provider, indexed_base = _index_embedding()
     indexed_usable = bool(indexed_model) and indexed_provider in EMBED_PROVIDERS
+    # A self-hosted chat model is chosen so that nothing leaves the machine: an
+    # index built earlier with a hosted embedder (no base URL) must not be reused,
+    # or every question would still be sent to that API to be embedded. The index
+    # is rebuilt with the local embedder instead (main.py does that on start-up).
+    if chat_base_url and not indexed_base:
+        indexed_usable = False
 
     candidates: list[tuple[str, str, str]] = []
     if pinned_provider or pinned_model or pinned_base:
