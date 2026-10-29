@@ -197,7 +197,11 @@ Foam::lookUpEnthalpyFvPatchScalarField::lookUpEnthalpyFvPatchScalarField
     const lookUpEnthalpyFvPatchScalarField& tppsf
 )
 :
-    fixedValueFvPatchScalarField(tppsf),
+    // Copy with an explicit internal-field reference. The single-argument base
+    // copy constructor is deprecated in OpenFOAM ("2026-03: soon = delete") and
+    // only still compiles behind the Foam_fvPatchField_copyConstruct guard; it
+    // forwards to exactly this call, so the behaviour is unchanged.
+    fixedValueFvPatchScalarField(tppsf, tppsf.internalField()),
     fgm_(nullptr),
     iT(-1),
     icp(-1),

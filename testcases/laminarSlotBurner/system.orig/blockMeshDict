@@ -17,13 +17,24 @@ FoamFile
 scale 1.0;
 
 // Dimensions
-lF 6.2278E-04;
+// lF is the flame thickness: it sets the cell size only, so refining the mesh
+// does not change the geometry. The domain lengths and the burner geometry are
+// absolute; the defaults below reproduce the original mesh exactly
+// (l_in = 10 lF, l_plate = 5 lF, l_out = 30 lF, h = 10 lF, h_plate = 4 lF).
+lF      FLAMETHICKNESS;
 
-l_in    #eval{ 10*$lF  };
-l_plate #eval{ 5*$lF  };
-l_out   #eval{ 30*$lF };
-h       #eval{ 10*$lF };
-h_plate #eval{ 4*$lF  };
+// l_out : length downstream of the plate; the flame tip must fall inside it
+l_in    6.2278E-03;
+l_out   OUTLETLENGTH;
+
+// Burner geometry
+//   l_plate : streamwise thickness of the plate (the flame holder)
+//   h       : half the hole pitch — the domain is one half-slot, symmetric
+//             about y = 0 (wake centreline) and y = h (slot centreline)
+//   h_plate : half-height of the plate, i.e. the pitch minus the open slot
+l_plate PLATETHICKNESS;
+h       #eval{ HOLEPITCH/2.0 };
+h_plate #eval{ $h - HOLESIZE/2.0 };
 
 // Cell distribution
 GradingX     1;

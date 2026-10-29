@@ -1,4 +1,7 @@
-CombustionModel and combustionModel are only included to ensure coherence between the thermo library and the FGM combustion model. No adapatations were made to these classes.
+The base classes (combustionModel, CombustionModel, ThermoCombustion) are NOT copied here: they come from
+OpenFOAM's own libcombustionModels, which this library links against. Earlier versions compiled unmodified
+copies of them into this library; that defined their static objects twice and caused a double free at
+exit (the malloc_consolidate / exit 134 crash after every parallel run). Do not add copies back.
 
 FGM/FGM contains the wrapper and selector, it reads combustionProperties.FGMCoeffs and selects model.
 

@@ -48,8 +48,11 @@ Group
     grpInletBoundaryConditions grpOutletBoundaryConditions
 
 Description 
-    This boundary condition sets the enthalpy boundary values to the values 
-    obtained from a neural network.
+    This boundary condition sets the enthalpy on a patch from the patch
+    temperature, by inverting the FGM table: starting from the current
+    enthalpy, it looks up the table temperature (lookupFGM_2D) and corrects the
+    enthalpy by 0.1*cp*(T_patch - T_table) until the two temperatures agree
+    within 1 K (at most 1000 iterations).
 
 Usage
 

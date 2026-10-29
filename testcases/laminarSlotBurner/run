@@ -17,6 +17,13 @@ Yc_u=0.0                    # [-]
 Yc_b=2.444368462162917e-03  # [-]
 ht=-1.805951297124500e+05   # [J/kg]
 
+# ==> Burner geometry  (defaults reproduce the original mesh)
+lF=6.2278e-04             # flame thickness, sets the cell size [m]
+plate_thickness=3.1139e-03  # streamwise thickness of the plate [m]
+hole_pitch=1.245560e-02     # centre-to-centre distance between slots [m]
+hole_size=7.473360e-03      # open height of the slot [m]
+outlet_length=1.868340e-02  # length downstream of the plate [m]
+
 nProcs=4            # [-]
 simtime=0.1         # [s]
 simtimestep=1.0e-5  # [s]
@@ -42,6 +49,12 @@ sed -i "s/SIMULATIONDELTATIME/$simtimestep/" system/controlDict
 sed -i "s/SIMULATIONWRITETIME/${simwritetime}/" system/controlDict
 
 sed -i "s/NPROCS/${nProcs}/" system/decomposeParDict
+
+sed -i "s/FLAMETHICKNESS/${lF}/"        system/blockMeshDict
+sed -i "s/PLATETHICKNESS/${plate_thickness}/" system/blockMeshDict
+sed -i "s/HOLEPITCH/${hole_pitch}/"     system/blockMeshDict
+sed -i "s/HOLESIZE/${hole_size}/"       system/blockMeshDict
+sed -i "s/OUTLETLENGTH/${outlet_length}/" system/blockMeshDict
 
 sed -i "s/INITIALPRESSURE/${p_0}/" 0/p
 sed -i "s/INLETTEMPERATURE/${T_0}/" 0/T

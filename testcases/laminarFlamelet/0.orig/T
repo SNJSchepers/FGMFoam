@@ -28,8 +28,6 @@ boundaryField
     closed
     {
         type            zeroGradient;
-        //type            fixedValue;    // Segmentation fault in liblookUpBoundaryCondition
-        //value           uniform 500.0;
     }
     sides
     {

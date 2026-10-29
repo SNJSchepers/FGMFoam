@@ -1,6 +1,3 @@
-combustionModel/combustionModel.C
-CombustionModel/CombustionModel/CombustionModels.C
-
 FGM/FGM/FGMs.C
 FGM/FGM_PM_UL_NA/FGM_PM_UL_NAs.C
 
