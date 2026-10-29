@@ -16,9 +16,9 @@ session it can:
   snapshots in an already-built case (no rebuild), and continue a finished run
   from its latest saved time without re-meshing.
 
-It runs on **the Claude API, the Mistral API, the OpenAI API, or a fully local
-open-source model** (Ollama/vLLM — nothing leaves the machine, which matters for
-unpublished work). One word switches between them, mid-conversation if you like:
+It runs on **the Mistral API (the default), the Claude API, the OpenAI API, or a
+fully local open-source model** (Ollama/vLLM — nothing leaves the machine, which
+matters for unpublished work). One word switches between them, mid-conversation if you like:
 `/model claude`, `/model local-3b`, `/models` to see the list — see
 [§2.1 Choosing a model](#21-choosing-a-model). Case building, validation and
 running are plain Python and identical for every provider; the model only decides
@@ -688,7 +688,8 @@ the provider, the model and the endpoint together:
 
 | Preset | Provider | Model | Key needed |
 |--------|----------|-------|------------|
-| `mistral` *(default)* | Mistral API | `mistral-large-latest` | `MISTRAL_API_KEY` |
+| `mistral` *(default)* | Mistral API | `mistral-large-4` (Mistral Large 4, "Le Chonk") | `MISTRAL_API_KEY` |
+| `mistral-large-3` | Mistral API | `mistral-large-2512` (Mistral Large 3) | `MISTRAL_API_KEY` |
 | `mistral-small` | Mistral API | `mistral-small-latest` | `MISTRAL_API_KEY` |
 | `claude` | Claude API | `claude-opus-5` | `ANTHROPIC_API_KEY` |
 | `claude-sonnet` | Claude API | `claude-sonnet-5` | `ANTHROPIC_API_KEY` |
@@ -754,7 +755,7 @@ local provider, and must not leave a hosted API pointed at a local `FGM_BASE_URL
 | `FGM_MODEL` | *(empty)* | default preset name (see §2.1); overridden by `--model` / `/model` |
 | `FGM_PROVIDER` | `mistral` | `mistral`, `anthropic`, or `openai` (the last also covers any OpenAI-compatible server) |
 | `FGM_BASE_URL` | *(empty)* | endpoint for an OpenAI-compatible server, e.g. `http://localhost:11434/v1` for Ollama |
-| `FGM_CHAT_MODEL` | `mistral-large-latest` | conversation / answering model |
+| `FGM_CHAT_MODEL` | `mistral-large-4` | conversation / answering model |
 | `MISTRAL_API_KEY` / `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | *(per provider)* | API key; `FGM_API_KEY` is a provider-agnostic fallback |
 | `FGM_EMBED_PROVIDER` | *(derived)* | `mistral` or `openai` — where embeddings come from |
 | `FGM_EMBED_MODEL` | *(derived)* | embedding model (recorded in the index manifest) |
@@ -774,9 +775,13 @@ instant: the stored vectors stay valid, so no rebuild is triggered. Leave the
 built with, falling back to the preset's embedder (skipping any whose key you do
 not have).
 
-The default chat model is **`mistral-large-latest`**: the smaller model too often
-answered from the retrieved fragments rather than opening the source. Use
-`--model mistral-small` for the cheapest hosted option (what the free tier allows
+The default chat model is **`mistral-large-4`** (Mistral Large 4, "Le Chonk"):
+on its own, without the guards, it carried out every simulation-manager scenario
+in the eval, where Mistral Large 3 still asked back or described a step instead
+of doing it. It is pinned by id because `mistral-large-latest` still points at
+Large 3. Use `--model mistral-large-3` for a cheaper large model (and if your
+Mistral plan does not include Large 4), `--model mistral-small` for the cheapest
+hosted option (what the free tier allows
 depends on your Mistral plan), or `--model local` to pay nothing and send nothing off the machine.
 
 ### 2.3 Running fully locally (no data leaves the machine)
@@ -1025,18 +1030,26 @@ runs passed (scenarios × repeats).
 
 | Model | Guards | A. Simulation manager | B. Solver information |
 |---|---|---|---|
-| `mistral` (Mistral Large) | on | 17/22 (77%) | 20/20 (100%) |
-| `mistral` (Mistral Large) | alone | 16/22 (73%) | 20/20 (100%) |
+| `mistral` (Mistral Large 4, "Le Chonk") | alone | 22/22 (100%) | — |
+| `mistral-large-3` (Mistral Large 3) | on | 17/22 (77%) | 20/20 (100%) |
+| `mistral-large-3` (Mistral Large 3) | alone | 16/22 (73%) | 20/20 (100%) |
 | `local-3b` (Qwen2.5 3B) | on | 30/33 (91%) | 24/30 (80%) |
 | `local-3b` (Qwen2.5 3B) | alone | 16/33 (48%) | 24/30 (80%) |
+
+The Large 4 row was measured later, after the system prompt and the
+`run_campaign` description were made explicit about acting at once (build when
+every required value is given; call `run_campaign` before asking about cores);
+its solver-information suite was not run separately. With that same prompt,
+Large 3 alone reached 20/22.
 
 What this shows:
 - **The guards are what make a 3B usable** for case handling, and they cost a
   large model nothing. No guard acts on a question, so the solver-information
   scores do not depend on them.
-- **Mistral Large's misses are cautious, not wrong.** It sometimes asks back
+- **Mistral Large 3's misses are cautious, not wrong.** It sometimes asks back
   ("which simulated time?") or lists the CPU options itself instead of calling the
   tool, and on "build it and run it" it describes the build without doing it.
+  Large 4 no longer does either, which is why it is the default.
 - **The 3B's misses are slips** that the guards catch: a case type left out, a
   value it was not given, a sweep variable it did not name. Its one recurring
   question failure is leaving T and psi out of the list of fields the table

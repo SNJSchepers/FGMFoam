@@ -68,12 +68,12 @@ INDEX_DIR: Path = AGENT_DIR / "index"
 # file, nor a preset supplies a value. The chat model defaults to Mistral's
 # "large": noticeably better over the solver source than "small", which too often
 # answered from retrieved fragments rather than the code. Switch with --model /
-# /model at any time; "--model mistral" selects the cheaper small model.
+# /model at any time; "--model mistral-small" selects the cheaper small model.
 DEFAULTS: dict[str, str] = {
     "FGM_MODEL": "",  # preset name; empty = use the FGM_PROVIDER/FGM_CHAT_MODEL pair
     "FGM_PROVIDER": "mistral",
     "FGM_BASE_URL": "",
-    "FGM_CHAT_MODEL": "mistral-large-latest",
+    "FGM_CHAT_MODEL": "mistral-large-4",
     "FGM_EMBED_PROVIDER": "",  # empty = derive from the chat provider / preset
     "FGM_EMBED_MODEL": "",  # empty = reuse the existing index, else the preset
     "FGM_EMBED_BASE_URL": "",

@@ -109,13 +109,13 @@ speed** (flamelet) or **flame length**, flashback or blow-off (slot burner). Ans
 grounded in a local retrieval index over the solver source, and for "how does X
 work" questions the agent opens the actual source file before answering.
 
-It runs on **the Claude API, the Mistral API, the OpenAI API, or a fully local
-open-source model** (Ollama/vLLM — nothing leaves the machine, which matters for
-unpublished research). Switching takes one word, at launch or mid-conversation,
-and you can simply ask:
+It runs on **the Mistral API (the default), the Claude API, the OpenAI API, or a
+fully local open-source model** (Ollama/vLLM — nothing leaves the machine, which
+matters for unpublished research). Switching takes one word, at launch or
+mid-conversation, and you can simply ask:
 
 ```bash
-agent/.venv/bin/python agent/main.py --model claude     # or mistral, openai, local
+agent/.venv/bin/python agent/main.py --model claude     # or mistral (default), openai, local
 > /models                          # list the presets      (/cases lists the cases)
 > /model local-3b                  # switch mid-conversation
 > use Claude for this one          # or just ask — same thing

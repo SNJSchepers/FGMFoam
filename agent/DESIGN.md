@@ -407,7 +407,8 @@ choice is user-configurable with friendly defaults — no code editing required.
 
 ### Models
 
-- **Chat + tool orchestration:** default `mistral-large-latest`, which is markedly
+- **Chat + tool orchestration:** default `mistral-large-4` (Mistral Large 4,
+  "Le Chonk"; `mistral-large-3` is the cheaper large preset), which is markedly
   better at reasoning over the C++ (measured in the eval: README "Measured
   results"); `mistral-small` is the cheaper preset and `local-3b` the free,
   fully local one.
@@ -501,11 +502,12 @@ routes and explains, so a smaller local model is viable.
 
 ## 10. Decisions
 
-1. **Chat model — pending.** Default `mistral-large-latest` for answers
-   (configurable via env var), with `mistral-small-latest` available to minimise
-   cost / stay within free-tier rate limits. Large is paid (~$0.50/$1.50 per M
-   tokens) but ~a fraction of a cent per turn here; a free experimentation tier
-   also exists. Awaiting final choice of default.
+1. **Chat model.** Default `mistral-large-4` (Mistral Large 4, "Le Chonk"),
+   pinned by id because `mistral-large-latest` still resolves to Large 3. On its
+   own (guards in shadow mode) it passed every simulation-manager scenario where
+   Large 3 still asked back or described instead of acting. `mistral-large-3` and
+   `mistral-small` remain as cheaper presets, `local-3b` as the free local one.
+   Each turn sends ~10-12k prompt tokens, so the model price dominates the cost.
 2. **Confirmed — include the testcase directories.** Both `laminarSlotBurner`
    and `laminarFlamelet`, text files only (see §3 exclusions).
 3. **Confirmed — add the read-only `compute_thermochemistry` tool.**

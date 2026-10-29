@@ -89,8 +89,16 @@ PRESETS: tuple[Preset, ...] = (
     Preset(
         name="mistral",
         provider="mistral",
-        chat_model="mistral-large-latest",
-        summary="Mistral API — large (the default)",
+        # Pinned rather than mistral-large-latest, which still points at Large 3.
+        chat_model="mistral-large-4",
+        summary="Mistral API — Large 4, \"Le Chonk\" (the default)",
+        key_env="MISTRAL_API_KEY",
+    ),
+    Preset(
+        name="mistral-large-3",
+        provider="mistral",
+        chat_model="mistral-large-2512",
+        summary="Mistral API — Large 3 (cheaper)",
         key_env="MISTRAL_API_KEY",
     ),
     Preset(
@@ -177,6 +185,7 @@ PRESET_BY_NAME: dict[str, Preset] = {p.name: p for p in PRESETS}
 # Accepted spellings that are not listed separately in /models.
 PRESET_ALIASES: dict[str, str] = {
     "mistral-large": "mistral",
+    "le-chonk": "mistral",
     "claude-opus": "claude",
     "ollama": "local",
 }

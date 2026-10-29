@@ -81,20 +81,22 @@ def test_default_is_mistral_large() -> None:
     retrieved fragments instead of the solver source."""
     with env(MISTRAL_API_KEY="k"):
         cfg = load_config()
-    assert (cfg.provider, cfg.chat_model) == ("mistral", "mistral-large-latest")
+    assert (cfg.provider, cfg.chat_model) == ("mistral", "mistral-large-4")
     assert cfg.embed_provider == "mistral" and cfg.embed_model == "mistral-embed"
 
 
 def test_mistral_preset_matches_the_default() -> None:
     """`/model mistral` must give what a fresh clone runs, not a cheaper model."""
     with env(MISTRAL_API_KEY="k"):
-        assert load_config(model="mistral").chat_model == "mistral-large-latest"
+        assert load_config(model="mistral").chat_model == "mistral-large-4"
+        assert load_config(model="mistral-large-3").chat_model == "mistral-large-2512"
         assert load_config(model="mistral-small").chat_model == "mistral-small-latest"
 
 
 def test_preset_aliases_resolve() -> None:
     with env(MISTRAL_API_KEY="k"):
-        assert load_config(model="mistral-large").chat_model == "mistral-large-latest"
+        assert load_config(model="mistral-large").chat_model == "mistral-large-4"
+        assert load_config(model="le-chonk").chat_model == "mistral-large-4"
     with env():
         assert load_config(model="ollama").chat_model == "qwen2.5-7b-16k"
 
