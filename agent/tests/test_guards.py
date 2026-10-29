@@ -330,15 +330,15 @@ def test_an_unburnt_temperature_outside_the_table_is_told_to_the_model() -> None
     # The 3B answered "set up a slot burner at 3000 K" by asking for the
     # temperature again; build_case, which refuses 3000 K, never ran. The table
     # check now reaches the model before it answers, whatever it then does.
-    note = chat._table_temperature_note(
+    note = chat._input_fact_note(
         "Can you set up a laminarSlotburner case with initial temperature of 3000 K ?")
     assert note and "3000 K" in note and "900 K" in note
-    assert chat._table_temperature_note("a flamelet at 450 K") is None
+    assert chat._input_fact_note("a flamelet at 450 K") is None
     # A plate temperature is not an unburnt temperature.
-    assert chat._table_temperature_note("0.4 m/s, 300 K inlet, plate at 1200 K") is None
+    assert chat._input_fact_note("0.4 m/s, 300 K inlet, plate at 1200 K") is None
     agent = _agent(["3000 K is outside the FGM table."])
     agent.ask("Can you set up a laminarSlotburner case with initial temperature of 3000 K ?")
-    assert any("outside the FGM table" in e for e in agent.events)
+    assert any("outside the table" in e for e in agent.events)
     # The tool refuses it too, without asking for the other values first.
     result = tools.execute_tool("build_case", {"case_type": "laminarSlotBurner",
                                                "case_name": "hot", "T_inlet": 3000})
@@ -382,6 +382,18 @@ def test_an_unusual_velocity_is_asked_about_then_built_once_confirmed() -> None:
 def test_a_slot_wider_than_the_pitch_is_refused() -> None:
     result = _sandbox_build(**SLOT_OK, inlet_velocity=0.4, hole_pitch=0.01, hole_size=0.012)
     assert result["status"] == "error" and "no plate" in result["message"]
+
+
+def test_an_unrealistic_velocity_is_told_to_the_model_before_it_answers() -> None:
+    # The 3B answered this by asking for a temperature, with no tool call, so the
+    # confirmation step in build_case never ran.
+    note = chat._input_fact_note(
+        "no can you set up a laminar slot burner case with 1000 m/s inlet velocity ?")
+    assert note and "inlet_velocity = 1000 m/s" in note and "confirm" in note
+    assert "plate_thickness" in chat._input_fact_note("a 50 mm plate thickness please")
+    assert "2271" in chat._input_fact_note("slot burner with plate at 2500 K")
+    assert chat._input_fact_note("slot burner at 0.4 m/s, 300 K, plate 400 K") is None
+    assert chat._input_fact_note("plate thickness of 5 mm") is None
 
 
 def test_celsius_is_read_as_kelvin() -> None:

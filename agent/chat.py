@@ -651,22 +651,84 @@ _KELVIN = re.compile(r"(?<![\w.])(\d+(?:\.\d+)?)\s*K\b")
 _WALL_WORDS = re.compile(r"(?i)\b(?:plate|wall)\b")
 
 
-def _table_temperature_note(user_input: str) -> Optional[str]:
-    """A note for each unburnt temperature in the message the table cannot hold."""
-    found = []
+def _values_in_message(text: str) -> dict[str, list[float]]:
+    """{parameter: SI values} the message gives, for the early plausibility note.
+
+    Wider than ``_stated_parameters`` (which only repairs tool calls, so must be
+    sure): the phrase may also follow the number ("1000 m/s inlet velocity",
+    "a 5 mm plate"), and a unit that belongs to one parameter alone (m/s) needs
+    no phrase at all.
+    """
+    found: dict[str, list[float]] = {}
+
+    def add(name: str, value: float) -> None:
+        if value not in found.setdefault(name, []):
+            found[name].append(value)
+
+    for name, value in _stated_parameters(text).items():
+        add(name, value)
+    specs = [spec for spec in validator.PARAM_SPECS if spec.typical is not None]
+    for spec in specs:
+        phrases = {spec.name.replace("_", " "), spec.name, *spec.phrases}
+        for phrase in sorted(phrases, key=len, reverse=True):
+            after = re.compile(r"(\d+(?:\.\d+)?(?:e-?\d+)?)\s*(mm|cm|m/s|m)(?![\w/])"
+                               r"[^\d\n.;]{0,15}?(?i:\b" + re.escape(phrase) + r"\b)")
+            for match in after.finditer(text):
+                unit, scale = _UNIT_SI[match.group(2)]
+                if unit == spec.unit:
+                    add(spec.name, float(match.group(1)) * scale)
+    by_unit: dict[str, list[str]] = {}
+    for spec in specs:
+        by_unit.setdefault(spec.unit, []).append(spec.name)
+    for number, unit in _VALUE.findall(text):
+        owners = by_unit.get(unit, [])
+        if len(owners) == 1:
+            add(owners[0], float(number))
+    return found
+
+
+def _input_fact_note(user_input: str) -> Optional[str]:
+    """Facts about the values in the message, checked before the model answers.
+
+    Temperatures the FGM table cannot hold (hard), and velocities or dimensions
+    far outside their usual range (to be confirmed). The 3B answered both "set
+    up a slot burner at 3000 K" and "... with 1000 m/s inlet velocity" without
+    calling a tool, so build_case, which catches both, never ran. Input
+    preparation, not a guard: it only adds facts, whatever the model does.
+    """
+    hard, unusual = [], []
     for match in _KELVIN.finditer(user_input):
-        # A plate or wall temperature is inverted at the local Yc, not the
-        # unburnt one, so the unburnt limit does not apply to it.
+        kelvin = float(match.group(1))
+        # A plate or wall is inverted at the local Yc: it has the table's own
+        # temperature range, not the unburnt limit.
         if _WALL_WORDS.search(user_input[max(0, match.start() - 30):match.start()]):
-            continue
-        refusal = tools_module.unburnt_temperature_outside_table(float(match.group(1)))
-        if refusal:
-            found.append(refusal)
-    if not found:
+            problem = tools_module.plate_temperature_outside_table(kelvin)
+        else:
+            problem = tools_module.unburnt_temperature_outside_table(kelvin)
+        if problem:
+            hard.append(problem)
+    specs = {spec.name: spec for spec in validator.PARAM_SPECS}
+    for name, values in _values_in_message(user_input).items():
+        for entry in validator.unusual_values({name: values}, None, [specs[name]]):
+            low, high = entry["usual_range"]
+            line = (f"{name} = {entry['value']:g} {entry['unit']} is far outside its "
+                    f"usual range ({low:g} to {high:g} {entry['unit']})")
+            # A length came with the user's own unit (mm, cm), which is already
+            # converted here, so a unit-slip guess would only confuse.
+            if entry.get("maybe_meant") and entry["unit"] != "m":
+                line += f"; perhaps {entry['maybe_meant']}"
+            unusual.append(line + ".")
+    if not hard and not unusual:
         return None
-    return ("Fact check, from the FGM table (not the user's words): "
-            + " ".join(found) + " Tell the user this first. Do not build a case "
-            "at that temperature, and do not ask for other values for it.")
+    parts = ["Fact check, from the agent's checks (not the user's words):"]
+    if hard:
+        parts.append(" ".join(hard) + " Tell the user this first; do not build a "
+                     "case at that temperature and do not ask for other values for it.")
+    if unusual:
+        parts.append(" ".join(unusual) + " Before anything else, ask the user whether "
+                     "they really mean this value and whether the unit is right; do "
+                     "not build or ask for other values until they confirm.")
+    return " ".join(parts)
 
 
 def _source_named_by_notes(hits: list[Hit], question: str) -> Optional[str]:
@@ -1305,9 +1367,9 @@ class ChatAgent:
         else:
             self._emit("retrieved no matching context")
         system = SYSTEM_PROMPT + "\n\n# Retrieved context\n" + format_context(hits)
-        table_note = _table_temperature_note(user_input)
+        table_note = _input_fact_note(user_input)
         if table_note:
-            self._emit("temperature outside the FGM table -> telling the model")
+            self._emit("value outside the table or its usual range -> telling the model")
             system += "\n\n# Fact check for this message\n" + table_note
 
         # For "how does X work / how is it implemented" questions that surface a

@@ -963,6 +963,11 @@ def unburnt_temperature_outside_table(t_inlet: float, phi: float = 0.7,
     return " ".join(problems) or None
 
 
+def plate_temperature_outside_table(t_plate: float) -> Optional[str]:
+    """Why a plate at ``t_plate`` K is outside the shipped table, or None."""
+    return " ".join(_table_temperature_problems({"T_plate": t_plate}, None)) or None
+
+
 def _table_temperature_problems(params: dict[str, Any], template: Any) -> list[str]:
     """Temperatures the FGM table cannot represent, each explained (hard limits).
 

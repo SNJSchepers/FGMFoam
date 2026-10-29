@@ -168,14 +168,16 @@ _UNIT_HINTS: dict[str, tuple[tuple[float, str], ...]] = {
 }
 
 
-def unusual_values(params: dict[str, Any], template: CaseTemplate) -> list[dict[str, Any]]:
+def unusual_values(params: dict[str, Any], template: Optional[CaseTemplate],
+                   specs: Optional[list[ParamSpec]] = None) -> list[dict[str, Any]]:
     """Values outside the usual range of their parameter in this case.
 
     Not errors: the user may mean them. Each entry carries the usual range and,
     when a common unit slip would explain the value, what was probably meant.
+    ``specs`` replaces the template's parameters (before a case type is known).
     """
     out = []
-    for spec in applicable_specs(template):
+    for spec in specs if specs is not None else applicable_specs(template):
         value = params.get(spec.name)
         if spec.typical is None or value is None:
             continue
