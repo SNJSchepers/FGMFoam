@@ -997,8 +997,10 @@ class ChatAgent:
                 "error": (
                     f"{choice!r} needs embedding model "
                     f"{new_config.embed_model!r}, but the knowledge index was "
-                    f"built with {self.config.embed_model!r}. Rebuild it first: "
-                    "agent/.venv/bin/python agent/index_build.py --force"
+                    f"built with {self.config.embed_model!r}. Restart with "
+                    f"--model {choice} (the index is rebuilt once with that "
+                    "embedder), or rebuild it first: agent/.venv/bin/python "
+                    f"agent/index_build.py --force --model {choice}"
                 ),
             }
 

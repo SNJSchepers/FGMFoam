@@ -279,6 +279,28 @@ def test_a_claimed_build_that_did_not_happen_is_corrected() -> None:
     assert "Correction from the agent" in reply
 
 
+def _note_hit(heading: str) -> object:
+    """The retrieved chunk of agent/knowledge/solver_notes.md under ``heading``."""
+    from rag.chunker import Chunk
+    from rag.index import Hit
+    lines = (config_module.REPO_ROOT / "agent/knowledge/solver_notes.md").read_text().splitlines()
+    start = next(i for i, line in enumerate(lines) if line.startswith("## " + heading))
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")), len(lines))
+    return Hit(Chunk("agent/knowledge/solver_notes.md", start + 1, end, "markdown",
+                     "\n".join(lines[start:end])), 0.5)
+
+
+def test_the_note_whose_heading_matches_steers_the_forced_read() -> None:
+    # As retrieved for this question: the boundary-condition note ranked first.
+    hits = [_note_hit("Enthalpy boundary condition"), _note_hit("Table lookup")]
+    question = "Okay how does the table lookup work, we have Yc bounds which vary with enthalpy?"
+    assert chat._source_named_by_notes(hits, question) == "solver/src/lookUp/FGM/FGMlib.c"
+    # A question about the boundary condition still opens the boundary condition.
+    bc = "How does the lookUpEnthalpy boundary condition work?"
+    assert chat._source_named_by_notes(hits[::-1], bc).endswith(
+        "lookUpEnthalpyFvPatchScalarField.C")
+
+
 def test_promises_and_denials_are_not_claims() -> None:
     # Mistral Large 4 phrasings that once tripped the claim check.
     request = "Set up a slot burner case at 0.4 m/s."
