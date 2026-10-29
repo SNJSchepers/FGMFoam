@@ -609,6 +609,9 @@ def _claims(pattern: re.Pattern[str], reply: str) -> bool:
     return False
 
 
+_CAMPAIGN_BUILT: frozenset[str] = frozenset({"prepared", "launched", "started"})
+
+
 def _claim_correction(
     user_input: str, reply: str, outcomes: list[tuple[str, str, dict[str, Any]]]
 ) -> Optional[str]:
@@ -616,14 +619,16 @@ def _claim_correction(
 
     ``outcomes`` are (tool name, status, result) for every call this turn.
     """
+    # A campaign builds its cases whether it is only prepared or also launched.
     built = any(n in ("build_case", "change_settings") and st in ("built", "ok", "updated")
-                or n == "run_campaign" and st == "prepared"
+                or n == "run_campaign" and st in _CAMPAIGN_BUILT
                 for n, st, _ in outcomes)
     ran = any(n in _RUN_TOOLS | {"run_campaign", "run_status"} and st in _RUN_SUCCESS
               for n, st, _ in outcomes)
     problems = [
         (n, st, r) for n, st, r in outcomes
-        if n in _ACTION_TOOLS | {"run_campaign"} and st not in ("built", "prepared", "ok")
+        if n in _ACTION_TOOLS | {"run_campaign"}
+        and st not in ("built", "prepared", "ok", *_CAMPAIGN_BUILT)
     ]
     lines = []
     if (_claims(_BUILD_CLAIM, reply) and not built

@@ -554,6 +554,15 @@ def test_celsius_is_read_as_kelvin() -> None:
     assert "3 cases" in text and len(converted) == 2
 
 
+def test_a_launched_campaign_is_not_corrected_as_unbuilt() -> None:
+    # "The campaign is set up and running" after run_campaign returned 'launched'
+    # got "Correction: no case was built or changed in this step".
+    request = "Set up a slot burner campaign over hole size and run it."
+    reply = "The campaign is set up and running."
+    assert chat._claim_correction(request, reply, [("run_campaign", "launched", {})]) is None
+    assert chat._claim_correction(request, reply, [("run_campaign", "prepared", {})]) is None
+
+
 def test_promises_and_denials_are_not_claims() -> None:
     # Mistral Large 4 phrasings that once tripped the claim check.
     request = "Set up a slot burner case at 0.4 m/s."
