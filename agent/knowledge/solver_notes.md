@@ -34,14 +34,19 @@ conservation (continuity) is enforced through the pressure equation — it is NO
 separately solved transport equation, so do not list "continuity" or "mass
 conservation" as one of the governing equations.
 
-Note on density and `rhoEqn.H`: FGMFoam.C also `#include`s the standard `rhoEqn.H`
-on the first PIMPLE iteration (guarded by `pimple.SIMPLErho()`,
-`FGMFoam.C:183-186`), but it has NO effect on the solution: the density is set from
-the thermodynamic relation `rho = psi*p` in the pressure step (`rho = thermo.rho()`
-in `pEqn.H`/`pcEqn.H`), where the compressibility `psi` comes from the FGM table
-(`FGM_PM_UL_NA.C:410`). So density is governed by the table and the pressure
-equation, not by a solved continuity equation — treat `rhoEqn.H` as effectively
-inactive.
+Note on density and `rhoEqn.H`: `rhoEqn.H` is OpenFOAM's standard continuity
+equation (`ddt(rho) + div(phi) = 0`, from `$FOAM_SRC/finiteVolume/cfdTools/
+compressible/`, not a file in this repository), inherited from rhoPimpleFoam. It
+IS used, twice per time step: (1) on the first PIMPLE iteration
+(`FGMFoam.C:183-186`) it updates `rho` from the mass fluxes, and that density is
+what the momentum predictor (`UEqn.H`) and the Yc/ht transport in
+`combustion->correct()` use, which keeps the scalar transport consistent with the
+fluxes (boundedness); (2) at the end of `pEqn.H`/`pcEqn.H` it is solved again so
+`compressibleContinuityErrs.H` can report the continuity error. Each time, `rho`
+is then reset to the thermodynamic density `rho = thermo.rho()` = `psi*p`, with
+`psi` from the FGM table (`FGM_PM_UL_NA.C:410`). So the table and the pressure
+equation set the density, and the continuity equation keeps the transport
+conservative within the step.
 
 The thermochemical state — density, temperature, transport, species — is NOT
 computed from an ideal-gas equation of state or finite-rate chemistry; it is read
