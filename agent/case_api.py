@@ -66,6 +66,10 @@ class ParamSpec:
     # 5 mm"), the chat loop makes sure the tool call carries that value — small
     # models drop or mangle stated values. The name with spaces always counts.
     phrases: tuple[str, ...] = ()
+    # The range a value of this parameter usually has in this case. A value
+    # outside it is not refused but must be confirmed by the user first, with a
+    # hint when it looks like a unit slip (40 m/s that should be 0.40, cm/s).
+    typical: Optional[tuple[float, float]] = None
 
 
 @dataclass(frozen=True)
@@ -112,6 +116,10 @@ class CaseTemplate:
     velocity_scale: Optional[Callable[[dict, Any], Optional[tuple[float, str]]]] = None
     # --- pre-run checks -------------------------------------------------------
     domain_length: Optional[Callable[[dict], Optional[float]]] = None
+    # check(params) -> why these values cannot make a valid case, or None. Hard:
+    # runs on the complete parameter set (defaults applied) before anything is
+    # written, e.g. a slot wider than the pitch leaves no plate to mesh.
+    check: Optional[Callable[[dict], Optional[str]]] = None
     # Listing order; the lowest is the default case.
     order: int = 100
     # Words that show the USER asked for this case ("flamelet", "slot burner").

@@ -115,6 +115,10 @@ in testing:
 | The model fills in a required value you never gave (`T_plate=300`) | not built; it has to ask you |
 | A length that is clearly in mm (`plate_thickness=5`) | converted if *you* wrote "5 mm" (or "2, 3 and 4 mm"); otherwise refused with "lengths are in metres" |
 | A temperature outside 200–3000 K (`T_inlet=0.7`) | refused: a wrong unit, or a value meant for another parameter |
+| A temperature the FGM table cannot hold (an unburnt gas at 3000 K, a plate at 2500 K) | refused at once, with the table's limits (unburnt gas 250 K to about 900 K, plate 250–2271 K for the shipped table); no other values are asked for first. Also for campaign values |
+| You give a temperature in Celsius ("27 °C", "100 C", "300 degC") | read as kelvin before anything else ("300.15 K (27 °C)"), so tools and checks see kelvin |
+| A velocity or dimension far outside its usual range (40 m/s, a 0.2 m slot) | nothing is built yet: the agent asks whether you are sure, and names the likely unit slip ("0.4 m/s if the value was in cm/s"). Only your confirmation, in your next message, lets it through |
+| A slot at least as wide as the pitch (`hole_size >= hole_pitch`) | refused: there would be no plate left to mesh |
 | "Now with a 5 mm plate" | the rebuild keeps your other settings (`inherited` in the provenance) |
 | You state a value with its name and unit ("a plate thickness of 5 mm", "hole size 6 mm") but the model's call drops or mangles it | the call carries your value (read from your message, unit-checked) |
 | You answer the "how should I split the cores?" question, but the model makes no call | the campaign it asked about is completed with your plan (still `launch=false` if you said not to start) |
@@ -1266,6 +1270,8 @@ optional:
 | `domain_length` | the flow-through check before a run |
 | `sample_fields` | which fields the post-run analysis samples (default `T Yc U`) |
 | `ParamSpec(..., phrases=(...))` | how people say a parameter ("slot width"), so a value stated with it is carried into the tool call |
+| `ParamSpec(..., typical=(low, high))` | the usual range of a parameter; a value outside it is built only after the user confirms it |
+| `check` | `check(params) -> reason or None`: a hard consistency check on the complete parameters (e.g. slot narrower than the pitch) |
 | `keywords` | words that show the user asked for this case (e.g. `"flamelet"`, `"slot"`), so the agent accepts this case type rather than asking which case is meant |
 
 #### Step 3: **Pick or write the measurement.** `measures.py` covers the common cases,

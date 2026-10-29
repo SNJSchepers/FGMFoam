@@ -136,7 +136,18 @@ def _build_case_schema() -> dict[str, Any]:
             "'<case_type>_agent'."
         ),
     }
+    properties["confirm_unusual"] = _CONFIRM_PROPERTY
     return {"type": "object", "properties": properties, "required": required}
+
+
+_CONFIRM_PROPERTY: dict[str, Any] = {
+    "type": "boolean",
+    "description": (
+        "true ONLY after the user has confirmed, in a later message, values the "
+        "tool reported as unusual (status confirm_values). Never set it on a "
+        "first attempt: the tool ignores it for values it has not asked about."
+    ),
+}
 
 
 def _campaign_geometry_properties() -> dict[str, Any]:
@@ -523,6 +534,7 @@ TOOLS: list[dict[str, Any]] = [
                         "set per case. Slot burner only. Prefer it over sim_time "
                         "when inlet velocity or plate thickness is swept.",
                     },
+                    "confirm_unusual": _CONFIRM_PROPERTY,
                     "launch": {
                         "type": "boolean",
                         "description": "false = build and save the campaign but do "
@@ -898,49 +910,127 @@ def _table_constraint_error(
     }
 
 
+# Unusual values (outside a parameter's usual range) are confirmed by the user,
+# not by the model: confirm_unusual counts only for values the tool already asked
+# about in an EARLIER turn, so a model cannot flag and confirm in one go.
+_TURN: list[int] = [0]
+_ASKED: dict[tuple[str, float], int] = {}
+
+
+def begin_turn() -> None:
+    """Called by the chat loop at the start of every user message."""
+    _TURN[0] += 1
+
+
+def _unconfirmed(unusual: list[dict[str, Any]], confirmed: bool) -> list[dict[str, Any]]:
+    """The unusual values the user has not confirmed yet; marks them as asked."""
+    pending = []
+    for entry in unusual:
+        key = (entry["parameter"], round(entry["value"], 12))
+        asked = _ASKED.get(key)
+        if confirmed and asked is not None and asked < _TURN[0]:
+            continue
+        _ASKED.setdefault(key, _TURN[0])
+        pending.append(entry)
+    return pending
+
+
+def _confirm_result(pending: list[dict[str, Any]], template: Any,
+                    missing: Optional[list[str]] = None) -> dict[str, Any]:
+    lines = []
+    for e in pending:
+        low, high = e["usual_range"]
+        line = (f"{e['parameter']} = {e['value']:g} {e['unit']} (usual for "
+                f"{template.name}: {low:g} to {high:g} {e['unit']})")
+        if e.get("maybe_meant"):
+            line += f"; did the user mean {e['maybe_meant']}?"
+        lines.append(line)
+    message = ("Nothing was built. These values are unusual: " + "; ".join(lines)
+               + ". Ask the user whether they are sure (and whether the unit is "
+               "right). Only if they confirm in their next message, call again with "
+               "confirm_unusual=true.")
+    if missing:
+        message += " Also still needed: " + ", ".join(missing) + "."
+    return {"status": "confirm_values", "case_type": template.name,
+            "unusual": pending, "message": message}
+
+
 def unburnt_temperature_outside_table(t_inlet: float, phi: float = 0.7,
                                       p_0: Optional[float] = None) -> Optional[str]:
     """Why an unburnt mixture at ``t_inlet`` K is outside the shipped table, or None."""
-    result = _outside_table({"T_inlet": t_inlet, "equivalence_ratio": phi, "p_0": p_0},
-                            None)
-    return result["message"].split(" Nothing was built")[0] + "." if result else None
+    problems = _table_temperature_problems(
+        {"T_inlet": t_inlet, "equivalence_ratio": phi, "p_0": p_0}, None)
+    return " ".join(problems) or None
+
+
+def _table_temperature_problems(params: dict[str, Any], template: Any) -> list[str]:
+    """Temperatures the FGM table cannot represent, each explained (hard limits).
+
+    ``T_inlet``: the unburnt enthalpy must lie in the table's enthalpy range, and
+    the temperature not below the coldest tabulated one. ``T_plate``: a wall at a
+    fixed temperature is inverted to an enthalpy by ``lookUpEnthalpy``, which can
+    only find temperatures the table returns. Lists (campaign values) are checked
+    value by value.
+    """
+    info = fgm_table.read_table_safe(of_writer.TABLE_SRC)
+    if info is None or info.dimension < 2:
+        return []
+    defaults = template.defaults if template is not None else {}
+    phi = float(params.get("equivalence_ratio") or defaults.get("equivalence_ratio", 0.7))
+    p_0 = float(params.get("p_0") or defaults.get("p_0", info.pressure))
+    h_lo, h_hi = info.range_of(1)
+    t_lo, t_hi = info.temperature_range or (0.0, float("inf"))
+
+    def numbers(value: Any) -> list[float]:
+        values = value if isinstance(value, list) else [value]
+        return [float(v) for v in values if isinstance(v, (int, float))]
+
+    problems = []
+    for t_inlet in numbers(params.get("T_inlet")):
+        try:
+            ht = cantera_tool.unburnt_enthalpy(phi, t_inlet, p_0)
+        except Exception:  # noqa: BLE001 - leave it to the later checks
+            continue
+        if h_lo <= ht <= h_hi and t_inlet >= t_lo:
+            continue
+        t_max = cantera_tool.max_unburnt_temperature(phi, p_0, h_hi)
+        problems.append(
+            f"An unburnt-gas temperature of {t_inlet:g} K is outside the FGM table: "
+            f"at phi = {phi:g} and {p_0:g} Pa the table covers unburnt mixtures from "
+            f"{t_lo:.0f} K to about {t_max:.0f} K (its enthalpy range is "
+            f"[{h_lo:.4g}, {h_hi:.4g}] J/kg; {t_inlet:g} K gives {ht:.4g} J/kg).")
+    for t_plate in numbers(params.get("T_plate")):
+        if not t_lo <= t_plate <= t_hi:
+            problems.append(
+                f"A plate temperature of {t_plate:g} K is outside the FGM table, whose "
+                f"temperatures run from {t_lo:.0f} to {t_hi:.0f} K: the plate's "
+                "enthalpy boundary condition can only find temperatures the table holds.")
+    return problems
 
 
 def _outside_table(params: dict[str, Any], template: Any) -> Optional[dict[str, Any]]:
-    """Refuse an unburnt state the FGM table does not cover, at build time.
+    """Refuse temperatures the FGM table does not cover, at build time.
 
     ``precheck`` finds the same problem, but only when a case is checked or run;
     by then the user has been asked for every other value and a case has been
     written for conditions that cannot be simulated.
     """
-    t_inlet = params.get("T_inlet")
-    info = fgm_table.read_table_safe(of_writer.TABLE_SRC)
-    if not isinstance(t_inlet, (int, float)) or info is None or info.dimension < 2:
+    problems = _table_temperature_problems(params, template)
+    if not problems:
         return None
+    info = fgm_table.read_table_safe(of_writer.TABLE_SRC)
     defaults = template.defaults if template is not None else {}
     phi = float(params.get("equivalence_ratio") or defaults.get("equivalence_ratio", 0.7))
     p_0 = float(params.get("p_0") or defaults.get("p_0", info.pressure))
-    lo, hi = info.range_of(1)
-    try:
-        ht = cantera_tool.unburnt_enthalpy(phi, float(t_inlet), p_0)
-    except Exception:  # noqa: BLE001 - leave it to the later checks
-        return None
-    if lo <= ht <= hi:
-        return None
-    t_max = cantera_tool.max_unburnt_temperature(phi, p_0, hi)
     return {
         "status": "outside_table",
         "case_type": template.name if template is not None else None,
-        "T_inlet": t_inlet,
-        "max_T_inlet": round(t_max),
-        "message": (
-            f"An unburnt-gas temperature of {t_inlet:g} K is outside the FGM table: "
-            f"its enthalpy ({ht:.4g} J/kg) lies outside the tabulated range "
-            f"[{lo:.4g}, {hi:.4g}] J/kg. At phi = {phi:g} and {p_0:g} Pa the table "
-            f"covers unburnt mixtures up to about {t_max:.0f} K. Nothing was built "
-            "and no other values are needed: ask the user for a lower temperature "
-            "(or explain that this needs a regenerated table)."
-        ),
+        "max_T_inlet": round(cantera_tool.max_unburnt_temperature(phi, p_0, info.range_of(1)[1])),
+        "table_temperature_range_K": [round(t) for t in info.temperature_range or ()],
+        "message": " ".join(problems) + (
+            " Nothing was built and no other values are needed: tell the user, and "
+            "ask for a temperature inside the table (or explain that this needs a "
+            "regenerated table)."),
     }
 
 
@@ -1013,6 +1103,14 @@ def _run_build_case(args: dict[str, Any], session: bool = True) -> dict[str, Any
     if outside:
         return outside
     missing = validator.find_missing(params, template)
+    # Inherited values were confirmed (or usual) when they were first built.
+    # A campaign asks once for all its cases (session=False builds are its own).
+    pending = _unconfirmed(
+        validator.unusual_values({k: v for k, v in params.items() if k not in inherited},
+                                 template),
+        bool(args.get("confirm_unusual"))) if session else []
+    if pending:
+        return _confirm_result(pending, template, missing)
     if missing:
         return {
             "status": "missing_parameters",
@@ -1025,6 +1123,10 @@ def _run_build_case(args: dict[str, Any], session: bool = True) -> dict[str, Any
         }
     supplied = set(params) - set(inherited)
     params = validator.apply_defaults(params, template)
+    problem = template.check(params) if template.check else None
+    if problem:
+        return {"status": "error", "error": "impossible geometry", "message":
+                problem + ". Nothing was built; ask the user for consistent values."}
     thermo = cantera_tool.compute_thermochemistry(
         params["equivalence_ratio"], params["T_inlet"], params["p_0"]
     )
@@ -1143,11 +1245,27 @@ def _run_run_campaign(args: dict[str, Any]) -> dict[str, Any]:
             "status": "error",
             "error": "a campaign needs at least two values to sweep over",
         }
-    unit_error = _unit_errors(
-        {**validator.coerce_types(args), validator.canonical_name(variable): values}
-    )
+    swept = {**validator.coerce_types(args), validator.canonical_name(variable): values}
+    unit_error = _unit_errors(swept)
     if unit_error is not None:
         return unit_error
+    outside = _outside_table(swept, template)
+    if outside is not None:
+        return outside
+    pending = _unconfirmed(validator.unusual_values(swept, template),
+                           bool(args.get("confirm_unusual")))
+    if pending:
+        return _confirm_result(pending, template)
+    if template.check:
+        fixed = validator.apply_defaults(
+            {k: v for k, v in validator.coerce_types(args).items()
+             if k in template.parameters and k != validator.canonical_name(variable)},
+            template)
+        for v in values:
+            problem = template.check({**fixed, validator.canonical_name(variable): v})
+            if problem:
+                return {"status": "error", "error": "impossible geometry",
+                        "message": f"{variable} = {v:g}: {problem}. Nothing was built."}
 
     cores = runner.physical_core_count(
         config.load_config(require_key=False).physical_cores

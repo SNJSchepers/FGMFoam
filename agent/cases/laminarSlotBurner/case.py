@@ -59,6 +59,24 @@ def domain_length(params):
 GEOMETRY = ("plate_thickness", "hole_pitch", "hole_size", "outlet_length",
             "flame_thickness")
 
+def geometry_problem(params: dict) -> str | None:
+    """Why this geometry cannot be meshed, or None.
+
+    The plate's half-height is ``h_plate = pitch/2 - size/2`` (blockMeshDict), so
+    a slot at least as wide as the pitch leaves no plate at all.
+    """
+    pitch, size = params.get("hole_pitch"), params.get("hole_size")
+    lengths = {k: params.get(k) for k in GEOMETRY}
+    negative = [k for k, v in lengths.items() if isinstance(v, (int, float)) and v <= 0]
+    if negative:
+        return "geometry must be positive: " + ", ".join(f"{k}={lengths[k]:g}" for k in negative)
+    if isinstance(pitch, (int, float)) and isinstance(size, (int, float)) and size >= pitch:
+        return (f"hole_size ({size:g} m) must be smaller than hole_pitch ({pitch:g} m): "
+                "the plate between two slots is pitch - size wide, so this leaves "
+                "no plate to stabilise the flame on")
+    return None
+
+
 CASE = CaseTemplate(
     name="laminarSlotBurner",
     summary=(
@@ -80,29 +98,34 @@ CASE = CaseTemplate(
         "OUTLETLENGTH": "outlet_length",
     },
     param_specs=(
+        # Usual ranges (typical=): outside them the user is asked to confirm.
+        # The laminar flame speed is ~0.19 m/s at the shipped table, and the
+        # default outlet holds the flame tip only up to ~0.45 m/s.
         ParamSpec("inlet_velocity", float, True, None, "m/s", "inlet bulk velocity",
-                  ("bulk velocity", "velocity")),
+                  ("bulk velocity", "velocity"), typical=(0.05, 3.0)),
         ParamSpec("T_plate", float, True, None, "K", "plate wall temperature",
                   ("plate temperature", "wall temperature", "plate")),
         # Geometry: defaults reproduce the original 43000-cell mesh exactly.
         ParamSpec("flame_thickness", float, False, 6.2278e-04, "m",
                   "flame thickness lF; sets the cell size (dx = lF/10) and nothing "
                   "else, so it refines the mesh without changing the geometry",
-                  ("flame thickness",)),
+                  ("flame thickness",), typical=(1.5e-4, 2.5e-3)),
         ParamSpec("plate_thickness", float, False, 3.1139e-03, "m",
                   "streamwise thickness of the plate (the flame holder)",
-                  ("plate thickness", "plate", "thickness")),
+                  ("plate thickness", "plate", "thickness"), typical=(5e-4, 1.5e-2)),
         ParamSpec("hole_pitch", float, False, 1.245560e-02, "m",
                   "centre-to-centre distance between slots; the domain is one "
-                  "half-slot of height hole_pitch/2", ("hole pitch", "slot pitch", "pitch")),
+                  "half-slot of height hole_pitch/2", ("hole pitch", "slot pitch", "pitch"),
+                  typical=(3e-3, 5e-2)),
         ParamSpec("hole_size", float, False, 7.473360e-03, "m",
                   "open height of the slot between plates",
-                  ("hole size", "slot width", "slot size", "hole", "slot")),
+                  ("hole size", "slot width", "slot size", "hole", "slot"),
+                  typical=(1e-3, 4e-2)),
         ParamSpec("outlet_length", float, False, L_OUT, "m",
                   "length of the domain downstream of the plate; the flame tip "
                   "must fall inside it, so longer flames (higher inlet velocity) "
                   "need a longer outlet",
-                  ("outlet length", "domain length", "outlet")),
+                  ("outlet length", "domain length", "outlet"), typical=(5e-3, 0.1)),
     ),
     sweepable=("T_inlet", "T_plate", "inlet_velocity") + GEOMETRY,
     geometric=GEOMETRY,
@@ -121,6 +144,7 @@ CASE = CaseTemplate(
     cell_size=cell_size,
     velocity_scale=velocity_scale,
     domain_length=domain_length,
+    check=geometry_problem,
     order=0,
     keywords=("slot", "burner", "2d", "two-dimensional", "flame length",
               "flashback", "blow-off", "blow off"),

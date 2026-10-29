@@ -58,6 +58,9 @@ class TableInfo:
     # Range of each control variable, in the table's own order (CV1, CV2, ...).
     cv_ranges: tuple[tuple[float, float], ...]
     n_rows: int
+    # Range of the TEMPERATURE column [K], if the table has one: the temperatures
+    # a lookup can return, so the only ones a fixed-temperature wall can have.
+    temperature_range: Optional[tuple[float, float]] = None
 
     @property
     def cv_names(self) -> tuple[str, ...]:
@@ -133,7 +136,9 @@ def read_table(path: Path) -> TableInfo:
         raise ValueError(f"{path.name}: [DATA] section is empty")
     # Only the control-variable columns are needed, but parsing them for every
     # row is cheap and catches a truncated table.
-    data = np.loadtxt(rows, usecols=range(dimension), ndmin=2)
+    t_col = variables.index("TEMPERATURE") if "TEMPERATURE" in variables else None
+    columns = list(range(dimension)) + ([t_col] if t_col is not None else [])
+    data = np.loadtxt(rows, usecols=columns, ndmin=2)
     expected = 1
     for n in datasize:
         expected *= n
@@ -155,6 +160,8 @@ def read_table(path: Path) -> TableInfo:
         variables=variables,
         cv_ranges=cv_ranges,
         n_rows=int(data.shape[0]),
+        temperature_range=(float(data[:, -1].min()), float(data[:, -1].max()))
+        if t_col is not None else None,
     )
     _CACHE[key] = info
     return info

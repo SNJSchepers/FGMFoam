@@ -620,6 +620,29 @@ _NOTE_HEADING = re.compile(r"^#+\s+(.+)$", re.MULTILINE)
 _STRONG_HEADING_MATCH = 2
 
 
+# Temperatures in degrees Celsius are rewritten in kelvin before anything else
+# sees the message: the model, the stated-value and invented-value guards, and
+# the table check all work in kelvin. "300 °C" becomes "573.15 K (300 °C)", so
+# the user's own number stays visible. A bare "C" counts only after a number.
+_CELSIUS = re.compile(
+    r"(?<![\w.])(-?\d+(?:\.\d+)?)\s*(?:°\s*C|º\s*C|deg(?:rees?)?\s*C(?:elsius)?"
+    r"|degC|C(?:elsius)?)(?![\w°])",
+    re.IGNORECASE)
+
+
+def celsius_to_kelvin(text: str) -> tuple[str, list[str]]:
+    """``text`` with every Celsius temperature also given in kelvin, and the list."""
+    converted: list[str] = []
+
+    def to_kelvin(match: re.Match[str]) -> str:
+        celsius = float(match.group(1))
+        kelvin = round(celsius + 273.15, 2)
+        converted.append(f"{match.group(1)} °C as {kelvin:g} K")
+        return f"{kelvin:g} K ({match.group(1)} °C)"
+
+    return _CELSIUS.sub(to_kelvin, text), converted
+
+
 # Temperatures the FGM table cannot hold, found before the model answers. The
 # 3B answered "set up a slot burner at 3000 K" by asking for the temperature
 # again, with no tool call, so build_case (which refuses it) never ran. This is
@@ -1243,6 +1266,9 @@ class ChatAgent:
         rolled back, so the history never keeps a dangling user message or a
         tool-call without its results and the next turn stays valid.
         """
+        user_input, converted = celsius_to_kelvin(user_input)
+        if converted:
+            self._emit("read " + ", ".join(converted))
         snapshot = len(self.history)
         self.history.append({"role": "user", "content": user_input})
         try:
@@ -1271,6 +1297,7 @@ class ChatAgent:
         return prior_user[-1] + "\n" + user_input
 
     def _run_turn(self, user_input: str) -> str:
+        tools_module.begin_turn()
         hits = retrieve(self.config, self._retrieval_query(user_input), self.index)
         if hits:
             top = ", ".join(hit.chunk.citation for hit in hits[:3])

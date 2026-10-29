@@ -345,6 +345,51 @@ def test_an_unburnt_temperature_outside_the_table_is_told_to_the_model() -> None
     assert result["status"] == "outside_table" and result["max_T_inlet"] < 1000
 
 
+def _sandbox_build(**args):
+    return tools.execute_tool("build_case", {"case_name": "plaus", **args})
+
+
+SLOT_OK = {"case_type": "laminarSlotBurner", "T_inlet": 300, "T_plate": 400}
+
+
+def test_temperatures_outside_the_table_are_refused_hard() -> None:
+    for args in ({"T_inlet": 3000}, {"T_inlet": 220},
+                 {"T_inlet": 300, "inlet_velocity": 0.4, "T_plate": 2500}):
+        result = _sandbox_build(case_type="laminarSlotBurner", **args)
+        assert result["status"] == "outside_table", (args, result)
+    # Even with confirm_unusual: temperatures are a hard limit, not a question.
+    result = _sandbox_build(**{**SLOT_OK, "T_plate": 2500}, inlet_velocity=0.4,
+                            confirm_unusual=True)
+    assert result["status"] == "outside_table"
+
+
+def test_an_unusual_velocity_is_asked_about_then_built_once_confirmed() -> None:
+    tools.begin_turn()
+    first = _sandbox_build(**SLOT_OK, inlet_velocity=40)
+    assert first["status"] == "confirm_values"
+    assert "0.4 m/s" in first["message"] and "cm/s" in first["message"]
+    # The model cannot confirm in the same turn it was asked.
+    same_turn = _sandbox_build(**SLOT_OK, inlet_velocity=40, confirm_unusual=True)
+    assert same_turn["status"] == "confirm_values"
+    tools.begin_turn()                       # the user answers "yes, 40 m/s"
+    confirmed = _sandbox_build(**SLOT_OK, inlet_velocity=40, confirm_unusual=True)
+    assert confirmed["status"] == "built", confirmed
+    # A value never asked about cannot be pre-confirmed.
+    fresh = _sandbox_build(**SLOT_OK, inlet_velocity=7, confirm_unusual=True)
+    assert fresh["status"] == "confirm_values"
+
+
+def test_a_slot_wider_than_the_pitch_is_refused() -> None:
+    result = _sandbox_build(**SLOT_OK, inlet_velocity=0.4, hole_pitch=0.01, hole_size=0.012)
+    assert result["status"] == "error" and "no plate" in result["message"]
+
+
+def test_celsius_is_read_as_kelvin() -> None:
+    text, converted = chat.celsius_to_kelvin("inlet 27 °C, plate 100 C, 0.4 m/s, 3 cases")
+    assert "300.15 K (27 °C)" in text and "373.15 K (100 °C)" in text
+    assert "3 cases" in text and len(converted) == 2
+
+
 def test_promises_and_denials_are_not_claims() -> None:
     # Mistral Large 4 phrasings that once tripped the claim check.
     request = "Set up a slot burner case at 0.4 m/s."

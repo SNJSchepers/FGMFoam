@@ -158,3 +158,42 @@ def apply_defaults(
         for name, value in complete.items()
         if name in template.parameters
     }
+
+
+# Unit slips worth naming when a value is outside its usual range: the factor
+# that brings it back in, and what the user probably meant.
+_UNIT_HINTS: dict[str, tuple[tuple[float, str], ...]] = {
+    "m/s": ((0.01, "cm/s"), (1 / 3.6, "km/h"), (0.001, "mm/s")),
+    "m": ((0.001, "mm"), (0.01, "cm"), (1e-6, "micrometres"), (1000.0, "mm converted twice")),
+}
+
+
+def unusual_values(params: dict[str, Any], template: CaseTemplate) -> list[dict[str, Any]]:
+    """Values outside the usual range of their parameter in this case.
+
+    Not errors: the user may mean them. Each entry carries the usual range and,
+    when a common unit slip would explain the value, what was probably meant.
+    """
+    out = []
+    for spec in applicable_specs(template):
+        value = params.get(spec.name)
+        if spec.typical is None or value is None:
+            continue
+        values = value if isinstance(value, list) else [value]
+        low, high = spec.typical
+        for v in values:
+            try:
+                x = float(v)
+            except (TypeError, ValueError):
+                continue
+            if low <= x <= high:
+                continue
+            entry: dict[str, Any] = {"parameter": spec.name, "value": x,
+                                     "unit": spec.unit, "usual_range": [low, high]}
+            for factor, meaning in _UNIT_HINTS.get(spec.unit, ()):
+                if low <= x * factor <= high:
+                    entry["maybe_meant"] = f"{x * factor:g} {spec.unit} (if the value was in {meaning})"
+                    break
+            out.append(entry)
+    return out
+
