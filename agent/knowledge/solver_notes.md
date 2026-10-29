@@ -562,6 +562,30 @@ desired equivalence ratio. When setting up a case, default the equivalence ratio
 to 0.7 and tell the user it is fixed by the table; do not build a case at a
 different phi without a matching regenerated table.
 
+**What the agent can do with phi: nothing other than 0.7.** `build_case` refuses
+any other equivalence ratio (`table_unsupported`), and `run_campaign` refuses
+`equivalence_ratio` as a sweep variable. So the honest answer to "can you set up a
+simulation (or a campaign) for varying equivalence ratio?" is **no, not with the
+shipped table**; do not offer to build cases at other phi values or to run a phi
+campaign, and do not ask the user for an equivalence ratio.
+
+What a phi study takes, done by hand outside the agent:
+
+1. Generate **one FGM table per equivalence ratio** with a 1D flame solver
+   (Chem1D or similar) and convert each to the `database.fgm` format (see the
+   table header section).
+2. For each case, put the matching table at `constant/lookUp/database.fgm`: the
+   solver always reads that path (it is hardcoded), and both the agent and the
+   `run` scripts copy the single shipped `tables/database.fgm` there, so the table
+   has to be swapped per case.
+3. Set the matching inlet/initial composition and check the enthalpy and
+   progress-variable ranges against each table.
+
+Varying phi inside one simulation (stratified or partially premixed flames) would
+need mixture fraction as an extra control variable, i.e. a 3D table and a new FGM
+model; the table lookup (`lookupFGM_2D`) is two-dimensional, so that is not
+supported in this release.
+
 ## The FGM table header (database.fgm)
 
 `database.fgm` is an ASCII file whose header (the lines before the `[DATA]`
