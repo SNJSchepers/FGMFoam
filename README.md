@@ -201,8 +201,10 @@ work" questions the agent opens the actual source file before answering.
 
 It runs on **the Mistral API (the default), the Claude API, the OpenAI API, or a
 fully local open-source model** (Ollama/vLLM; nothing leaves the machine, which
-matters for unpublished research). Switching takes one word, at launch or
-mid-conversation, and you can simply ask:
+matters for unpublished research). A small local model sets up and runs cases
+well thanks to the agent's guardrails; for questions about how the solver works,
+a large model (the default) gives more complete and precise answers. Switching
+takes one word, at launch or mid-conversation, and you can simply ask:
 
 ```bash
 agent/.venv/bin/python agent/main.py --model claude     # or mistral (default), openai, local

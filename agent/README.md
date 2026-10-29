@@ -784,6 +784,15 @@ Mistral plan does not include Large 4), `--model mistral-small` for the cheapest
 hosted option (what the free tier allows
 depends on your Mistral plan), or `--model local` to pay nothing and send nothing off the machine.
 
+> **For questions about the solver, use a large model.** Small local models
+> handle case setup and runs well, because the guards and the deterministic tools
+> do the hard part. Explaining code is different: nothing checks an answer, so it
+> is only as good as the model's reading of the source. The 3B answers most
+> questions in the right direction but misses details (24/30 on the Q&A suite,
+> against 20/20 for Mistral Large 3, see [Measured results](#measured-results)).
+> A practical split: a local model for routine setup, and `/model mistral` (or
+> another large preset) when you want to understand the code.
+
 ### 2.3 Running fully locally (no data leaves the machine)
 
 For data-sensitive work you can run the agent against a **local** OpenAI-compatible
