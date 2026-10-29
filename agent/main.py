@@ -35,12 +35,19 @@ import time
 from pathlib import Path
 from typing import Optional
 
-import config as config_module
-from chat import ChatAgent
-from config import Config, ConfigError
-from case_templates import describe_templates
-from providers import caveat_for, describe_presets
-from rag.index import VectorIndex, build_index, index_exists, staleness
+from cases import CasePluginError
+
+# The case plugins are loaded and validated on import (case_templates). A wrong
+# declaration names its file and every problem; show that, not a traceback.
+try:
+    import config as config_module
+    from chat import ChatAgent
+    from config import Config, ConfigError
+    from case_templates import describe_templates
+    from providers import caveat_for, describe_presets
+    from rag.index import VectorIndex, build_index, index_exists, staleness
+except CasePluginError as exc:
+    sys.exit(f"A case declaration has problems, so the agent did not start.\n{exc}")
 
 try:
     from rich.console import Console

@@ -1232,7 +1232,10 @@ that should vary with an UPPERCASE placeholder: `INLETVELOCITY`,
 `WALLTEMPERATURE`, … The run controls and the thermochemistry come for free:
 `SIMULATIONTIME`, `SIMULATIONDELTATIME`, `SIMULATIONWRITETIME`, `NPROCS`,
 `INITIALPRESSURE`, `INITIALPROGRESSVARIABLE`, `FINALPROGRESSVARIABLE`,
-`INITIALENTHALPY`. The template name may not contain `_`.
+`INITIALENTHALPY`. The template name may not contain `_`. The agent writes cases
+from `0.orig/` and `system.orig/` itself and does not use the case's own `run`
+script; if you keep one for running by hand, give it a `sed` line for each new
+placeholder too.
 
 #### Step 2: **Declare it.** The minimal useful declaration; this is essentially
 `agent/cases/laminarFlamelet/case.py`:

@@ -164,7 +164,9 @@ def apply_defaults(
 # that brings it back in, and what the user probably meant.
 _UNIT_HINTS: dict[str, tuple[tuple[float, str], ...]] = {
     "m/s": ((0.01, "cm/s"), (1 / 3.6, "km/h"), (0.001, "mm/s")),
-    "m": ((0.001, "mm"), (0.01, "cm"), (1e-6, "micrometres"), (1000.0, "mm converted twice")),
+    # Lengths reach the tool in metres, and anything above 0.1 m is already
+    # refused as millimetres; what remains is a value converted twice.
+    "m": ((1000.0, "mm, converted to metres twice"),),
 }
 
 
