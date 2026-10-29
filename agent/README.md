@@ -1065,7 +1065,8 @@ runs passed (scenarios × repeats).
 
 | Model | Guards | A. Simulation manager | B. Solver information |
 |---|---|---|---|
-| `mistral` (Mistral Large 4, "Le Chonk") | alone | 22/22 (100%) | not measured |
+| `mistral` (Mistral Large 4, "Le Chonk") | on | 22/22 (100%) | 20/20 (100%) |
+| `mistral` (Mistral Large 4, "Le Chonk") | alone | 22/22 (100%) | 20/20 (100%) |
 | `mistral-large-3` (Mistral Large 3) | on | 17/22 (77%) | 20/20 (100%) |
 | `mistral-large-3` (Mistral Large 3) | alone | 16/22 (73%) | 20/20 (100%) |
 | `local-3b` (Qwen2.5 3B) | on | 32/33 (97%) | 24/30 (80%) |
@@ -1074,7 +1075,8 @@ runs passed (scenarios × repeats).
 The Large 4 row was measured later, after the system prompt and the
 `run_campaign` description were made explicit about acting at once (build when
 every required value is given; call `run_campaign` before asking about cores);
-its solver-information suite was not run separately. With that same prompt,
+its solver-information suite (no guard acts on a question, so on and alone are
+the same run) was measured last too. With that same prompt,
 Large 3 alone reached 20/22. The 3B's simulation-manager rows were re-measured last, after the latest
 guards; its solver-information column is from the earlier run.
 
