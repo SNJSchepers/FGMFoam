@@ -436,6 +436,34 @@ unburnt mixture (no CO2) and Yc ≈ 2.44e-3 kmol/kg at chemical equilibrium (bur
 Do NOT define Yc as a normalised (0–1) sum of CO / CO2 / H2 / H2O mass fractions —
 that generic FGM progress-variable definition is not the one used here.
 
+## Enthalpy definition: ht is the TOTAL enthalpy (sensible + chemical), so it is conserved
+
+The enthalpy control variable `ht` is the **total (absolute) specific enthalpy**
+of the mixture: **sensible enthalpy plus chemical enthalpy**, where the chemical
+part is the enthalpy of formation of the species (in J/kg). It does not include
+the kinetic energy (low-Mach formulation). Because the chemical enthalpy is
+included, burning does not change `ht`: the heat released by the reactions only
+moves enthalpy from the chemical to the sensible part. That is why the `ht`
+transport equation in `FGM_PM_UL_NA::solve()`
+(`solver/src/combustionModel/FGM/FGM_PM_UL_NA/FGM_PM_UL_NA.C:349-356`) has **no
+source term**, only time derivative, convection and (unity-Lewis) diffusion:
+
+    fvm::ddt(rho, ht_) + mvConvection().fvmDiv(phi, ht_)
+      - fvm::laplacian(alpha + this->turbulence().mut()/Sct_, ht_)
+
+So `ht` is a conserved scalar. In an adiabatic premixed flame it is constant
+everywhere; it changes only through heat exchange with the boundaries, which is
+what the non-adiabatic model captures: a cooled burner plate lowers `ht` near the
+wall, and the FGM table then returns a lower temperature for the same `Yc`.
+
+Values are negative for the shipped methane-air mixture (about -1.8e5 J/kg at
+300 K), because the enthalpy of formation of methane is negative. That is normal:
+the agent computes the unburnt `ht` with Cantera's absolute enthalpy
+(`enthalpy_mass`, which includes formation enthalpies), the same definition the
+table's CV2 uses, and the pre-run check compares it with the table's `ht` range.
+At a wall or inlet with a prescribed temperature, the `lookUpEnthalpy` boundary
+condition finds the `ht` that gives that temperature at the local `Yc`.
+
 ## Turbulence: well-resolved LES/DNS work; no SGS-TCI closure; RANS not accurate
 
 FGMFoam is NOT restricted to laminar flow. It creates a standard OpenFOAM
