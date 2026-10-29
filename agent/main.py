@@ -32,6 +32,7 @@ import re
 import sys
 import textwrap
 import time
+from pathlib import Path
 from typing import Optional
 
 import config as config_module
@@ -102,6 +103,36 @@ BANNER = r"""
 									██▀██ ██ ▄▄ ██▄▄  ███▄██   ██   
 									██▀██ ▀███▀ ██▄▄▄ ██ ▀██   ██   																
 """
+
+
+HISTORY_FILE = Path.home() / ".fgmfoam_agent_history"
+
+
+def _enable_line_editing() -> None:
+    """Arrow keys, editing and history for the prompt.
+
+    Plain ``input()`` only gets them when the ``readline`` module is loaded;
+    without it the arrows print escape codes (``^[[D``) instead of moving the
+    cursor. History (up/down) is kept across sessions in ``HISTORY_FILE``.
+    ``readline`` is not available on native Windows, where this is skipped.
+    """
+    try:
+        import atexit
+        import readline
+    except ImportError:
+        return
+    try:
+        readline.read_history_file(HISTORY_FILE)
+    except OSError:
+        pass                                    # first run, or unreadable
+    readline.set_history_length(1000)
+
+    def save() -> None:
+        try:
+            readline.write_history_file(HISTORY_FILE)
+        except OSError:
+            pass
+    atexit.register(save)
 
 
 def print_banner(config: Config) -> None:
@@ -276,6 +307,7 @@ def main() -> int:
         return 0
 
     # Interactive REPL.
+    _enable_line_editing()
     print_banner(config)
     while True:
         try:
