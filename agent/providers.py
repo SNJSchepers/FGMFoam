@@ -83,6 +83,8 @@ class Preset:
     embed_base_url: Optional[str] = None
     # Environment variable holding this provider's API key ("" = no key needed).
     key_env: str = ""
+    # Shown whenever this model becomes active (start-up, /model, or by asking).
+    caveat: str = ""
 
 
 # Ordered so the listing reads hosted-first, local-last.
@@ -178,6 +180,9 @@ PRESETS: tuple[Preset, ...] = (
         embed_provider="openai",
         embed_model="nomic-embed-text",
         embed_base_url=OLLAMA_BASE_URL,
+        caveat=("The 3B sets up and runs cases well, but its answers to questions "
+                "about how the solver works can miss details. For those, a larger "
+                "model is recommended: /model mistral."),
     ),
 )
 
@@ -286,6 +291,12 @@ def implausible_model(provider: str, model: str) -> Optional[str]:
     hint = f"; did you mean {' or '.join(close)}?" if close else ""
     label = {"anthropic": "Claude", "mistral": "Mistral"}[provider]
     return f"'{model}' is not a preset or a {label} model id{hint} (/models lists the presets)"
+
+
+def caveat_for(chat_model: str, provider: str) -> str:
+    """The caveat of the preset that runs ``chat_model`` on ``provider``, if any."""
+    return next((p.caveat for p in PRESETS
+                 if p.chat_model == chat_model and p.provider == provider), "")
 
 
 def describe_presets(active_model: str = "", active_provider: str = "") -> str:

@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import re
 import sys
+import textwrap
 import time
 from typing import Optional
 
@@ -37,7 +38,7 @@ import config as config_module
 from chat import ChatAgent
 from config import Config, ConfigError
 from case_templates import describe_templates
-from providers import describe_presets
+from providers import caveat_for, describe_presets
 from rag.index import VectorIndex, build_index, index_exists, staleness
 
 try:
@@ -113,8 +114,12 @@ def print_banner(config: Config) -> None:
         "    description — /cases lists them.",
         "  • Run, monitor, stop, and delete cases (single runs or core-aware sweeps).",
     ]
+    caveat = caveat_for(config.chat_model, config.provider)
+    note = textwrap.fill(caveat, width=80, initial_indent="  Note: ",
+                         subsequent_indent="        ") + "\n" if caveat else ""
     footer = (
         f"  Model: {config_module.describe(config)}\n"
+        f"{note}"
         "  switch: /model <name>   ·   list: /models, /cases   ·   "
         "exit: 'exit' / 'quit' / Ctrl-D"
     )
@@ -202,6 +207,9 @@ def _handle_model_command(agent: ChatAgent, user_input: str) -> None:
     result = agent.switch_model(choice)
     if result["status"] == "switched":
         _diag(f"switched -> {result['current']}")
+        for key in ("caveat", "warning"):
+            if result.get(key):
+                _diag(f"note: {result[key]}")
     elif result["status"] == "current":
         _diag(f"current model: {result['current']}")
         _diag("switch with /model <name>, list options with /models")

@@ -368,6 +368,16 @@ def test_an_impossible_model_id_is_refused_at_switch_time() -> None:
         assert agent.switch_model("my-finetune:latest")["status"] == "switched"
 
 
+def test_switching_to_the_3b_says_to_ask_solver_questions_elsewhere() -> None:
+    with env(MISTRAL_API_KEY="k"):
+        agent = _bare_agent(load_config(model="local"))
+        result = agent.switch_model("3B")
+        assert result["status"] == "switched"
+        assert "larger" in result["caveat"]
+        # The large models carry no such note.
+        assert "caveat" not in agent.switch_model("local")
+
+
 def test_switch_model_reports_a_missing_key_without_switching() -> None:
     with env():
         agent = _bare_agent(load_config(model="local"))

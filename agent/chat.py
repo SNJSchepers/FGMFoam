@@ -612,18 +612,21 @@ def _unapplied_values(user_input: str, calls: list[tuple[str, dict[str, Any]]]) 
 # embedding model to match ("table lookup out of range" vs interpolation code
 # full of eta1/w1p); the note is easy to match, and naming the file in it is how a
 # note steers grounding — the same mechanism that corrects the agent's beliefs.
-_SOURCE_PATH = re.compile(r"`(solver/[\w/.-]+\.(?:C|H|c|h))`")
+# The path may carry line numbers (`solver/.../FGMFoam.C:145-209`).
+_SOURCE_PATH = re.compile(r"`(solver/[\w/.-]+\.(?:C|H|c|h))(?::[\d-]+)?`")
 
 
 _NOTE_HEADING = re.compile(r"^#+\s+(.+)$", re.MULTILINE)
+_STRONG_HEADING_MATCH = 2
 
 
 def _source_named_by_notes(hits: list[Hit], question: str) -> Optional[str]:
     """The source file the top-ranked notes point to for this question.
 
-    Only notes ranked above every source chunk count. Of those that name a file,
-    the one whose section heading shares the most of the question's words decides,
-    and a tie keeps the better-ranked one. Ranking alone is not enough: "how does
+    Notes ranked above every source chunk count, and below one only a note whose
+    heading shares at least two of the question's words. Of those that name a
+    file, the one whose section heading shares the most of the question's words
+    decides, and a tie keeps the better-ranked one. Ranking alone is not enough: "how does
     the table lookup work, do the Yc bounds vary with enthalpy?" ranked the
     enthalpy boundary-condition note (which mentions the lookup) above the note
     headed "Table lookup", and the forced read opened the boundary condition.
@@ -632,15 +635,22 @@ def _source_named_by_notes(hits: list[Hit], question: str) -> Optional[str]:
     """
     words = set(query_terms(question))
     best: tuple[int, list[str]] = (-1, [])
+    above_source = True
     for hit in hits:
         if hit.chunk.kind == "cpp":
-            break
+            above_source = False
+            continue
         named = [path for path in dict.fromkeys(_SOURCE_PATH.findall(hit.chunk.text))
                  if (config_module.REPO_ROOT / path).is_file()]
         if not named:
             continue
         heading = _NOTE_HEADING.search(hit.chunk.text)
         score = len(words & set(query_terms(heading.group(1)))) if heading else 0
+        # Below a source chunk, only a note whose heading names the topic (two
+        # or more of the question's words) may still steer: "table lookup ...
+        # enthalpy" ranked the enthalpy BC's source above the "Table lookup" note.
+        if not above_source and score < _STRONG_HEADING_MATCH:
+            continue
         if score > best[0]:
             best = (score, named)
     named = best[1]
@@ -1013,6 +1023,9 @@ class ChatAgent:
             "note": "Applies from the next reply, for this session only; the "
                     "conversation so far is kept.",
         }
+        caveat = providers.caveat_for(new_config.chat_model, new_config.provider)
+        if caveat:
+            result["caveat"] = caveat
         # A name that matches no preset is passed through as a raw model id, so
         # that models released after this code was written stay reachable. That
         # also means a typo cannot be caught here — say so rather than report a

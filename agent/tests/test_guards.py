@@ -301,6 +301,24 @@ def test_the_note_whose_heading_matches_steers_the_forced_read() -> None:
         "lookUpEnthalpyFvPatchScalarField.C")
 
 
+def test_a_word_in_most_paths_earns_no_path_bonus() -> None:
+    # "solver" is in every solver/ path: it must not lift all source code above
+    # the knowledge note that answers "what is the solver algorithm?".
+    from rag.chunker import Chunk
+    from rag.index import _lexical_scores
+    chunks = [Chunk(f"solver/src/lib{i}/file{i}.C", 1, 2, "cpp", "code") for i in range(6)]
+    chunks.append(Chunk("agent/knowledge/notes.md", 1, 2, "markdown", "algorithm"))
+    scores = _lexical_scores("What is the solver algorithm", chunks)
+    assert scores[-1] > scores[0]
+    # A word that does name a file still earns it.
+    assert _lexical_scores("file3", chunks)[3] > _lexical_scores("file3", chunks)[0]
+
+
+def test_a_note_may_name_its_file_with_line_numbers() -> None:
+    text = "loop (`solver/applications/FGMFoam/FGMFoam.C:145-209`) does, in order:"
+    assert chat._SOURCE_PATH.findall(text) == ["solver/applications/FGMFoam/FGMFoam.C"]
+
+
 def test_promises_and_denials_are_not_claims() -> None:
     # Mistral Large 4 phrasings that once tripped the claim check.
     request = "Set up a slot burner case at 0.4 m/s."

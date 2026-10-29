@@ -60,6 +60,8 @@ MANIFEST_FILE = "manifest.json"
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
 _LEXICAL_PATH_WEIGHT: float = 0.35
 _LEXICAL_TEXT_WEIGHT: float = 0.05
+# A query word found in at least this share of chunk paths earns no path bonus.
+_LEXICAL_PATH_MAX_SHARE: float = 0.3
 # Filler / intent words that carry no topic, dropped from the lexical query so
 # they neither dilute the score nor match paths by accident.
 _LEXICAL_STOPWORDS: frozenset[str] = frozenset({
@@ -93,9 +95,16 @@ def _lexical_scores(query: str, chunks: list[Chunk]) -> np.ndarray:
     if not terms:
         return scores
     n = len(terms)
+    paths = [chunk.rel_path.lower() for chunk in chunks]
+    # A word in most paths names no file: "solver" is in every solver/ path (and
+    # solver_notes.md), so "what is the solver algorithm?" lifted all source code
+    # above the knowledge note that answers it. Only discriminating words earn
+    # the path bonus; they still count in the text bonus below.
+    path_terms = [t for t in terms
+                  if sum(t in path for path in paths) < _LEXICAL_PATH_MAX_SHARE * len(paths)]
     for i, chunk in enumerate(chunks):
-        path = chunk.rel_path.lower()
-        path_hits = sum(1 for t in terms if t in path)
+        path = paths[i]
+        path_hits = sum(1 for t in path_terms if t in path)
         text_tokens = set(_TOKEN_RE.findall(chunk.text.lower()))
         text_hits = sum(1 for t in terms if t in text_tokens)
         scores[i] = (
