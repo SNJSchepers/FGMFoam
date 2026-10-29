@@ -10,11 +10,11 @@ FGMFoam is an OpenFOAM combustion solver using Flamelet Generated Manifolds (FGM
 
 FGM is a tabulated chemistry approach that reduces the computational cost of combustion simulations by pre-computing the flame chemistry on a low-dimensional manifold, parameterised by a small set of control variables such as a progress variable and enthalpy. At runtime, all thermochemical quantities are retrieved from the pre-computed table rather than solved through detailed chemistry, making industrial-scale combustion simulations feasible.
 
-FGMFoam is designed as a modular framework: all FGM-related functionality — field management, control variable transport equations, and table lookup — is self-contained in a single library with no complex cross-dependencies. Multiple FGM models can coexist in the same solver and are selected at runtime through the input files, making it straightforward to extend the framework with new FGM models for your own research without modifying the rest of the codebase.
+FGMFoam is designed as a modular framework: all FGM-related functionality (field management, control variable transport equations, and table lookup) is self-contained in a single library with no complex cross-dependencies. Multiple FGM models can coexist in the same solver and are selected at runtime through the input files, making it straightforward to extend the framework with new FGM models for your own research without modifying the rest of the codebase.
 
 An optional **conversational agent** (`agent/`) can answer questions about the
 solver from its own source code and set up, check, run and analyse cases from a
-plain-language description — see [The FGMFoam agent](#the-fgmfoam-agent-optional)
+plain-language description; see [The FGMFoam agent](#the-fgmfoam-agent-optional)
 below and its full documentation in [`agent/README.md`](agent/README.md). The
 solver does not need it.
 
@@ -22,18 +22,18 @@ solver does not need it.
 
 - [Prerequisites](#prerequisites) · [Build](#build) · [Running test cases](#running-test-cases)
 - [Architecture](#architecture) · [Adding a new FGM model](#adding-a-new-fgm-model) · [Known limitations](#known-limitations)
-- [The FGMFoam agent (optional)](#the-fgmfoam-agent-optional) — full docs in [`agent/README.md`](agent/README.md)
+- [The FGMFoam agent (optional)](#the-fgmfoam-agent-optional), full docs in [`agent/README.md`](agent/README.md)
 - [Citation](#citation) · [License](#license) · [References](#references)
 
 ## Prerequisites
 
 | Requirement | Version / Notes |
 |---|---|
-| OpenFOAM-com (ESI/OpenCFD) | **v2506** and **v2606** — developed on v2506, and both test cases build and run on v2606. Other versions may work |
-| MPI | Any standard implementation (OpenMPI, MPICH) — required for parallel runs and shared-memory table loading |
+| OpenFOAM-com (ESI/OpenCFD) | **v2506** and **v2606**: developed on v2506, and both test cases build and run on v2606. Other versions may work |
+| MPI | Any standard implementation (OpenMPI, MPICH), required for parallel runs and shared-memory table loading |
 | C++ standard | C++14 or later (as required by OpenFOAM-com) |
-| CMake / wmake | Provided by OpenFOAM — no separate installation needed |
-| Python | 3.10+ — **only** for the optional [agent](#the-fgmfoam-agent-optional); the solver needs no Python |
+| CMake / wmake | Provided by OpenFOAM, no separate installation needed |
+| Python | 3.10+, **only** for the optional [agent](#the-fgmfoam-agent-optional); the solver needs no Python |
 
 > **Note:** This solver is built on the **OpenFOAM-com** (ESI/OpenCFD) branch, not the OpenFOAM.org (Foundation) branch. The two branches are not interchangeable.
 
@@ -90,34 +90,34 @@ Logs are written to `log.blockMesh`, `log.setFields`, `log.decomposePar`, `log.F
 ```
 FGMFoam (solver app)
     └── CombustionModel<psiReactionThermo>        [OpenFOAM interface]
-            └── FGM<ReactionThermo>               [selector — reads combustionProperties]
+            └── FGM<ReactionThermo>               [selector: reads combustionProperties]
                     └── FGM_PM_UL_NA              [concrete model: premixed + non-adiabatic effects]
                             └── FGMTable          [MPI shared-memory table manager]
                                     └── FGMlib.c  [pure-C reader + 2D interpolation]
 ```
 
-### `src/lookUp` — table I/O and caching
+### `src/lookUp`: table I/O and caching
 
 - **`FGM/FGMlib.c`+`.h`**: Pure C library. `readFGM()` parses a `.fgm` ascii file into a `FGM` struct (pressure, control-variable grid sizes, variable names, raw float data). `lookupFGM_2D()` performs bilinear interpolation over two control variables.
 - **`Table/FGMTable.C`+`.H`**: C++ singleton factory. `FGMTable::getFGMInstance(fileName)` loads the `.fgm` table once per node using an MPI shared-memory window (`MPI_Win_allocate_shared`), serialises/deserialises the `FGM` struct across ranks so only rank 0 reads the file. Returns a shared `FGM*` pointer usable by all local MPI ranks.
 
-### `src/combustionModel` — FGM model hierarchy
+### `src/combustionModel`: FGM model hierarchy
 
 - **Base classes**: `combustionModel`, `CombustionModel<ReactionThermo>` and `ThermoCombustion` come from OpenFOAM's own `libcombustionModels`, which the library links against. FGMFoam registers its model into OpenFOAM's run-time selection table rather than compiling its own copy of those classes. Older versions did compile such copies, so their static objects existed twice and were destroyed twice at exit, which made parallel runs end with `malloc_consolidate(): unaligned fastbin chunk detected` (exit code 134).
 - **`FGM/FGM/FGM.C`+`.H`**: Selector. Reads `constant/combustionProperties` (`FGMCoeffs { flameType; transportModel; adiabatic; subGridModel; }`) and delegates to the matching concrete model via OpenFOAM's run-time selection.
-- **`FGM/FGM_PM_UL_NA/`**: Currently the only concrete model — premixed flame with non-adiabatic effects and unity Lewis transport. Control variables are `Yc` (progress variable) and `ht` (total enthalpy). Each time step `correct()` calls `solve()` (transports Yc and ht) then `update()` (looks up T, mu, cp, lambda, rho, species mass fractions, HeatRelease from the FGM table and writes them back to the thermo fields).
+- **`FGM/FGM_PM_UL_NA/`**: Currently the only concrete model: premixed flame with non-adiabatic effects and unity Lewis transport. Control variables are `Yc` (progress variable) and `ht` (total enthalpy). Each time step `correct()` calls `solve()` (transports Yc and ht) then `update()` (looks up T, mu, cp, lambda, rho, species mass fractions, HeatRelease from the FGM table and writes them back to the thermo fields).
 
-### `src/lookUpBoundaryCondition` — custom boundary condition
+### `src/lookUpBoundaryCondition`: custom boundary condition
 
 `lookUpEnthalpyFvPatchScalarField` (`type lookUpEnthalpy`): fixed-value BC for `ht` that evaluates enthalpy at the patch by looking up T and cp from the FGM table.
 
-### `applications/FGMFoam` — solver
+### `applications/FGMFoam`: solver
 
 PIMPLE-based compressible reactive solver. Per time step:
 1. **Momentum equation** (`UEqn.H`)
-2. **Combustion** — `combustion->correct()` (Yc and ht transport + FGM table lookup)
+2. **Combustion**: `combustion->correct()` (Yc and ht transport + FGM table lookup)
 3. **Pressure corrector loop** (`pEqn.H` or `pcEqn.H` for consistent PIMPLE)
-4. **Turbulence correction** — turbulent transport of the control variables is included via the gradient diffusion hypothesis, but no sub-grid scale turbulence-chemistry interaction (TCI) model is included yet.
+4. **Turbulence correction**: turbulent transport of the control variables is included via the gradient diffusion hypothesis, but no sub-grid scale turbulence-chemistry interaction (TCI) model is included yet.
 
 ### FGM table (`tables/database.fgm`)
 
@@ -152,26 +152,26 @@ The included `database.fgm` is a 250 × 100 table for a methane–air flame at �
 ## Known limitations
 
 - **Transport models:** Only premixed flames with unity Lewis transport (`FGM_PM_UL_NA`) are currently implemented. More advanced transport models accounting for preferential and differential diffusion effects, essential for accurate hydrogen combustion modelling, are under active development.
-- **Turbulence-chemistry interaction:** Turbulent simulations are supported — turbulent transport of the control variables is included via the gradient diffusion hypothesis. However, no sub-grid scale (SGS) turbulence-chemistry interaction (TCI) model is included, meaning the FGM table is accessed with instantaneous filtered control variables. Turbulent simulations are therefore limited to well-resolved LES or DNS where subgrid fluctuations are small. A SGS TCI model is planned for a future release.
+- **Turbulence-chemistry interaction:** Turbulent simulations are supported: turbulent transport of the control variables is included via the gradient diffusion hypothesis. However, no sub-grid scale (SGS) turbulence-chemistry interaction (TCI) model is included, meaning the FGM table is accessed with instantaneous filtered control variables. Turbulent simulations are therefore limited to well-resolved LES or DNS where subgrid fluctuations are small. A SGS TCI model is planned for a future release.
 - **Dimensionality:** The FGM table lookup is currently limited to two control variables (2D interpolation). Extension to higher-dimensional tables is not yet supported.
 - **OpenFOAM branch:** Only the OpenFOAM-com (ESI/OpenCFD) branch is supported. Compatibility with the OpenFOAM.org (Foundation) branch is not guaranteed.
 
 ## The FGMFoam agent (optional)
 
-> **Full documentation: [`agent/README.md`](agent/README.md)** — installation,
+> **Full documentation: [`agent/README.md`](agent/README.md)**: installation,
 > model presets, the tool list, adding your own case, and the measured results.
 > The design rationale is in [`agent/DESIGN.md`](agent/DESIGN.md).
 
 `agent/` contains an optional conversational assistant for this solver: a CLI that
 answers questions about FGMFoam grounded in its own source code, and sets up, runs
 and monitors cases from a plain-language description. Both example cases can be
-built — the 2D `laminarSlotBurner` and the 1D `laminarFlamelet` — varying the
+built (the 2D `laminarSlotBurner` and the 1D `laminarFlamelet`), varying the
 conditions, and for the slot burner the burner geometry as well (plate
 thickness, hole pitch, hole size, outlet length), since its mesh is parameterised.
 
 ```
 > What is the progress variable definition?
-  Yc = Y_CO2 / M_CO2 — the CO2 mass fraction over its molar mass (kmol/kg), not a
+  Yc = Y_CO2 / M_CO2: the CO2 mass fraction over its molar mass (kmol/kg), not a
   normalised 0-1 quantity. (agent/knowledge/solver_notes.md)
 
 > Set up phi 0.7, U 0.2 m/s, inlet 300 K, plate 300 K, run 0.1 s, dt 1e-5 s
@@ -191,7 +191,7 @@ or run, while parameter validation, the Cantera thermochemistry, and the case
 writing are plain Python and identical no matter which model is used. Every
 generated case carries an `agent-provenance.json` recording the parameters, which
 of them you chose, the mechanism and the FGM table's content hash; and before the
-solver is launched the case is checked against that table — conditions outside
+solver is launched the case is checked against that table: conditions outside
 its tabulated range, or a time step too large for the mesh, are caught in
 milliseconds rather than after hours of compute. Afterwards it reports what
 happened: the Courant number the run actually reached, and the **laminar flame
@@ -200,7 +200,7 @@ grounded in a local retrieval index over the solver source, and for "how does X
 work" questions the agent opens the actual source file before answering.
 
 It runs on **the Mistral API (the default), the Claude API, the OpenAI API, or a
-fully local open-source model** (Ollama/vLLM — nothing leaves the machine, which
+fully local open-source model** (Ollama/vLLM; nothing leaves the machine, which
 matters for unpublished research). Switching takes one word, at launch or
 mid-conversation, and you can simply ask:
 
@@ -208,7 +208,7 @@ mid-conversation, and you can simply ask:
 agent/.venv/bin/python agent/main.py --model claude     # or mistral (default), openai, local
 > /models                          # list the presets      (/cases lists the cases)
 > /model local-3b                  # switch mid-conversation
-> use Claude for this one          # or just ask — same thing
+> use Claude for this one          # or just ask, same thing
 ```
 
 ### Quick start
@@ -228,7 +228,7 @@ agent/.venv/bin/python agent/main.py
 ```
 
 Or run it entirely on your own machine, with no key and no data leaving it
-(needs [Ollama](https://ollama.com) — see
+(needs [Ollama](https://ollama.com); see
 [`agent/README.md` §2.3](agent/README.md#23-running-fully-locally-no-data-leaves-the-machine)
 for the one-time model pull):
 
@@ -240,8 +240,8 @@ On first run the agent builds its knowledge index over the solver source; that
 takes a moment and happens once.
 
 The two example cases are demonstrators: **your own simulations can be added as
-plugins** — one folder with a short declaration of the case's parameters,
-placeholders and what to measure — and they get provenance, pre-run checks,
+plugins**: one folder with a short declaration of the case's parameters,
+placeholders and what to measure, and they get provenance, pre-run checks,
 automatic time steps, campaigns and graphs without touching the agent's code.
 
 See [`agent/README.md`](agent/README.md) for installation, configuration, model
@@ -272,7 +272,7 @@ If you use FGMFoam in your research, please cite the following paper, in which t
 
 ## License
 
-This project is licensed under the GNU General Public License v3.0 — see the [LICENSE](https://github.com/SNJSchepers/FGMFoam/blob/main/LICENSE) file for details.
+This project is licensed under the GNU General Public License v3.0; see the [LICENSE](https://github.com/SNJSchepers/FGMFoam/blob/main/LICENSE) file for details.
 
 ## References
 
