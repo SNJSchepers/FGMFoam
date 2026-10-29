@@ -509,6 +509,36 @@ def _case_type_from_user(user_input: str, said: str) -> Optional[str]:
     return None
 
 
+_REFUSED_PHRASES: dict[str, tuple[str, ...]] = {
+    "equivalence_ratio": ("equivalence ratios", "equivalence ratio", "phi", "φ"),
+    "p_0": ("pressures", "pressure"),
+}
+
+
+def _resent_unchanged(args: dict[str, Any], user_input: str) -> list[str]:
+    """Values a rebuild call re-sends, wrongly, that the user did not change now.
+
+    "Make the slot 6 mm wide, keeping everything else": the 3B re-sent the
+    previous 5 mm plate as 0.0005 m. A value of the last-built case's chosen
+    parameters that differs from it and is not written in this message is
+    dropped, so the case's own value is inherited.
+    """
+    last = tools_module.last_build()
+    if not last or args.get("case_name") not in (None, "", last["case_name"]):
+        return []
+    said = [float(n) * s for n in _ANY_NUMBER.findall(user_input) for s in _SCALES]
+    out = []
+    for key, value in args.items():
+        key = validator.canonical_name(key)
+        old = last["chosen"].get(key)
+        new = _numbers(value)
+        if old is None or len(new) != 1 or abs(new[0] - float(old)) <= 1e-9 * max(abs(float(old)), 1):
+            continue
+        if not any(abs(new[0] - g) <= 0.01 * max(abs(new[0]), 1e-12) for g in said):
+            out.append(key)
+    return out
+
+
 def _variable_from_user(template_name: str, user_input: str) -> Optional[str]:
     """The sweepable parameter the user's message points at, or None.
 
@@ -521,6 +551,14 @@ def _variable_from_user(template_name: str, user_input: str) -> Optional[str]:
     template = case_templates.TEMPLATE_BY_NAME.get(template_name)
     if template is None:
         return None
+    # A variable that cannot be swept, named with a list, is filled in too: the
+    # tool then refuses it with the reason (the table fixes phi), where a missing
+    # variable got a generic error the 3B could not explain.
+    for name, phrases in _REFUSED_PHRASES.items():
+        for phrase in phrases:
+            if re.search(r"(?i:\b" + re.escape(phrase) + r"\b)[^\d\n]{0,30}?\d[\d.]*\s*(?:,|and|to)",
+                         user_input):
+                return name
     # Strongest signal: the parameter whose name is followed by the value list
     # ("sweeps the plate thickness over 2, 3 and 4 mm"). Other parameters named
     # with single values in the same message are the fixed conditions.
@@ -1673,6 +1711,14 @@ class ChatAgent:
                         and self._guard("repair", "variable_fill",
                                         f"variable={variable} taken from your message")):
                     args["variable"] = variable
+                if name in _STATED_TOOLS:
+                    unchanged = _resent_unchanged(args, user_input)
+                    if unchanged and self._guard(
+                            "repair", "unchanged_kept",
+                            "kept the case's own " + ", ".join(unchanged)
+                            + " (not changed in your message)"):
+                        for key in unchanged:
+                            args.pop(key, None)
                 if name in _STATED_TOOLS | {"run_campaign"}:
                     swept = validator.canonical_name(str(args.get("variable") or ""))
                     for key, value in _stated_parameters(user_input).items():

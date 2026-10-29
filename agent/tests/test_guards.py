@@ -548,6 +548,33 @@ def test_a_campaign_without_its_conditions_names_what_is_missing_up_front() -> N
     assert "T_inlet = 300" in result["message"]        # the shipped values, offered
 
 
+def test_a_rebuild_keeps_values_the_user_did_not_change() -> None:
+    # S05: the 3B re-sent the 5 mm plate as 0.0005 m when only the slot changed.
+    tools.reset_session_cases()
+    agent = _agent([
+        [_call("build_case", {**SLOT, "case_type": "laminarSlotBurner",
+                              "case_name": "geo", "plate_thickness": 0.005})],
+        "Built.",
+        [_call("change_settings", {"case_name": "laminarSlotBurner_geo",
+                                   "plate_thickness": 0.0005, "hole_size": 0.006})],
+        "Rebuilt.",
+    ])
+    agent.ask("Set up a slot burner case named geo at 0.4 m/s inlet velocity, 300 K "
+              "inlet, 400 K plate, with a plate thickness of 5 mm.")
+    agent.ask("And make the slot (hole size) 6 mm wide, keeping everything else.")
+    assert ("repair", "unchanged_kept", True) in agent.guards
+    last = tools.last_build()["chosen"]
+    assert last["plate_thickness"] == 0.005 and last["hole_size"] == 0.006
+
+
+def test_campaign_values_under_the_parameter_name_are_used() -> None:
+    result = tools.execute_tool("run_campaign", {
+        "case_type": "laminarSlotBurner", "variable": "plate_thickness",
+        "plate_thickness": [0.002, 0.003], "T_inlet": 300, "T_plate": 400,
+        "inlet_velocity": 0.4, "launch": False})
+    assert result["status"] == "missing_cpu_plan", result
+
+
 def test_celsius_is_read_as_kelvin() -> None:
     text, converted = chat.celsius_to_kelvin("inlet 27 °C, plate 100 C, 0.4 m/s, 3 cases")
     assert "300.15 K (27 °C)" in text and "373.15 K (100 °C)" in text
@@ -688,8 +715,14 @@ def test_the_swept_variable_is_read_from_the_message() -> None:
         "plate temperature 400 K") == "plate_thickness"
     assert _variable_from_user("laminarFlamelet",
                                "flamelets at unburnt temperatures of 300, 400 and 500 K") == "T_inlet"
+    # Not a temperature sweep: the refused variable itself, so the tool says why.
     assert _variable_from_user("laminarFlamelet",
-                               "a flamelet campaign over equivalence ratios 0.6, 0.7 and 0.8") is None
+                               "a flamelet campaign over equivalence ratios 0.6, 0.7 and 0.8"
+                               ) == "equivalence_ratio"
+    refused = tools.execute_tool("run_campaign", {
+        "case_type": "laminarFlamelet", "variable": "equivalence_ratio",
+        "values": [0.6, 0.7, 0.8], "launch": False})
+    assert refused["status"] == "error" and "0.7" in refused["error"]
 
 
 def test_stated_values_are_read_with_their_units() -> None:

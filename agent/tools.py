@@ -944,6 +944,11 @@ _TURN: list[int] = [0]
 _ASKED: dict[tuple[str, float], int] = {}
 
 
+def last_build() -> Optional[dict[str, Any]]:
+    """The case built last in this session: name, type and the user's values."""
+    return dict(_LAST_BUILD) if _LAST_BUILD else None
+
+
 def begin_turn() -> None:
     """Called by the chat loop at the start of every user message."""
     _TURN[0] += 1
@@ -1339,6 +1344,9 @@ def _run_run_campaign(args: dict[str, Any]) -> dict[str, Any]:
         return {"status": "error", "error": problem}
 
     values = args.get("values") or []
+    # The 3B put the list under the parameter's own name (plate_thickness=[...]).
+    if not values and isinstance(args.get(variable), list):
+        values = args[variable]
     try:
         values = [float(v) for v in values]
     except (TypeError, ValueError):
