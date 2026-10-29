@@ -52,6 +52,7 @@ from typing import Any, Optional
 import fgm_table
 import of_mesh
 import of_writer
+import solver_build
 
 # A Courant number above this is flagged. The solver is implicit, so this is an
 # accuracy/robustness guide rather than a hard stability limit.
@@ -402,6 +403,9 @@ def check_case(case_dir: Path) -> list[Finding]:
     if not case_dir.is_dir():
         return [Finding("error", "case_missing", f"No such case: {case_dir}")]
     _check_table(case_dir, findings)
+    build = solver_build.problem()
+    if build:
+        findings.append(Finding("error", "solver_build_mismatch", build))
     _check_run_controls(case_dir, findings)
     _check_mesh(case_dir, findings)
     _check_residence_time(case_dir, findings)

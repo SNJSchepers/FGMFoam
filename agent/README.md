@@ -121,6 +121,7 @@ in testing:
 | You give a temperature in Celsius ("27 °C", "100 C", "300 degC") | read as kelvin before anything else ("300.15 K (27 °C)"), so tools and checks see kelvin |
 | A velocity or dimension far outside its usual range (40 m/s, a 0.2 m slot) | nothing is built yet: the agent asks whether you are sure, and names the likely unit slip ("0.4 m/s if the value was in cm/s"). Only your confirmation, in your next message, lets it through |
 | A slot at least as wide as the pitch (`hole_size >= hole_pitch`) | refused: there would be no plate left to mesh |
+| The `FGMFoam` on your `PATH`/`LD_LIBRARY_PATH` is another build (e.g. a second checkout sharing `FOAM_USER_LIBBIN`) or missing | warned at start-up and with every build; every run is refused by the pre-run check, naming the library that would load. Detected from the functions this repository's solver calls in its table library (`FGMlib.h`), so a mismatched table reader is caught before `decomposePar` fails on it |
 | "Now with a 5 mm plate" | the rebuild keeps your other settings (`inherited` in the provenance) |
 | You state a value with its name and unit ("a plate thickness of 5 mm", "hole size 6 mm") but the model's call drops or mangles it | the call carries your value (read from your message, unit-checked) |
 | You answer the "how should I split the cores?" question, but the model makes no call | the campaign it asked about is completed with your plan (still `launch=false` if you said not to start) |

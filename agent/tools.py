@@ -43,6 +43,7 @@ import precheck
 import providers
 import provenance
 import runner
+import solver_build
 import timestep
 import validator
 from config import REPO_ROOT
@@ -1235,6 +1236,10 @@ def _run_build_case(args: dict[str, Any], session: bool = True) -> dict[str, Any
         "thermochemistry": {"Yc_u": thermo.Yc_u, "Yc_b": thermo.Yc_b, "ht": thermo.ht},
         "write_interval": params["sim_time"] / params["sim_write_steps"],
     }
+    build = solver_build.problem()
+    if build:
+        # Built anyway (building needs no solver), but no run will work as is.
+        result["solver_build_warning"] = build + " The case is built; it cannot run until this is fixed."
     if shipped:
         result["shipped_values_used"] = {
             "values": shipped,

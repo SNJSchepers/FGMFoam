@@ -31,7 +31,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import of_writer  # noqa: E402
 import precheck  # noqa: E402
+import solver_build  # noqa: E402
 import tools  # noqa: E402
+
+# The case checks are under test here, not this machine's solver build (which
+# may be absent, or another checkout's): that check has its own tests below.
+_real_build_problem = solver_build.problem
+solver_build.problem = lambda: None
 
 CASE = "laminarFlamelet_pytest_check"
 
@@ -243,6 +249,47 @@ def test_residence_time_does_not_apply_without_inflow() -> None:
 def test_missing_case_is_reported_not_raised() -> None:
     result = tools.execute_tool("check_case", {"case_name": "no_such_case"})
     assert result["status"] == "error"
+
+
+def _fake_build(tmp: Path, exported: set[str]) -> dict[str, str]:
+    """A PATH with an FGMFoam and an LD_LIBRARY_PATH with the three libraries."""
+    import os
+    (tmp / "bin").mkdir()
+    (tmp / "lib").mkdir()
+    solver = tmp / "bin" / "FGMFoam"
+    solver.write_text("#!/bin/sh\n")
+    solver.chmod(0o755)
+    for name in solver_build.LIBRARIES:
+        # Stand-in for a dynamic symbol table: defined names between NULs.
+        (tmp / "lib" / name).write_bytes(b"\0" + b"\0".join(n.encode() for n in exported) + b"\0")
+    return {"PATH": f"{tmp / 'bin'}:{os.environ['PATH']}",
+            "LD_LIBRARY_PATH": str(tmp / "lib")}
+
+
+def test_a_solver_build_from_another_checkout_is_named_before_a_run() -> None:
+    import os
+    import tempfile
+    needed = set(solver_build.required_functions())
+    assert {"readFGM", "lookupFGM_2D"} <= needed
+    real_which, saved = solver_build.shutil.which, dict(os.environ)
+    try:
+        solver_build.shutil.which = lambda name: None if name == "nm" else real_which(name)
+        for exported, ok in ((needed, True), ({"readFGM_CL2RL", "lookupFGM_SCALED_2D"}, False)):
+            with tempfile.TemporaryDirectory() as tmp:
+                os.environ.update(_fake_build(Path(tmp), exported))
+                solver_build._CACHE.clear()
+                found = _real_build_problem()
+                assert (found is None) == ok, found
+                if not ok:
+                    assert "different FGMFoam build" in found and "lookupFGM_2D" in found
+        os.environ["PATH"], os.environ["LD_LIBRARY_PATH"] = "/nonexistent", ""
+        solver_build._CACHE.clear()
+        assert "not on the PATH" in _real_build_problem()
+    finally:
+        solver_build.shutil.which = real_which
+        os.environ.clear()
+        os.environ.update(saved)
+        solver_build._CACHE.clear()
 
 
 if __name__ == "__main__":

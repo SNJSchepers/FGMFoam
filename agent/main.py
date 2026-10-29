@@ -45,6 +45,7 @@ try:
     from config import Config, ConfigError
     from case_templates import describe_templates
     from providers import caveat_for, describe_presets
+    import solver_build
     from rag.index import VectorIndex, build_index, index_exists, staleness
 except CasePluginError as exc:
     sys.exit(f"A case declaration has problems, so the agent did not start.\n{exc}")
@@ -210,6 +211,10 @@ def print_banner(config: Config) -> None:
     caveat = caveat_for(config.chat_model, config.provider)
     note = textwrap.fill(caveat, width=80, initial_indent="  Note: ",
                          subsequent_indent="        ") + "\n" if caveat else ""
+    build = solver_build.problem()
+    if build:
+        note += textwrap.fill(build, width=80, initial_indent="  Warning: ",
+                              subsequent_indent="           ") + "\n"
     footer = (
         f"  Model: {config_module.describe(config)}\n"
         f"{note}"
