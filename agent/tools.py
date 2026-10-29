@@ -36,6 +36,7 @@ import cantera_tool
 import campaign as campaign_module
 import case_templates
 import config
+import fgm_table
 import of_writer
 import postrun
 import precheck
@@ -897,6 +898,52 @@ def _table_constraint_error(
     }
 
 
+def unburnt_temperature_outside_table(t_inlet: float, phi: float = 0.7,
+                                      p_0: Optional[float] = None) -> Optional[str]:
+    """Why an unburnt mixture at ``t_inlet`` K is outside the shipped table, or None."""
+    result = _outside_table({"T_inlet": t_inlet, "equivalence_ratio": phi, "p_0": p_0},
+                            None)
+    return result["message"].split(" Nothing was built")[0] + "." if result else None
+
+
+def _outside_table(params: dict[str, Any], template: Any) -> Optional[dict[str, Any]]:
+    """Refuse an unburnt state the FGM table does not cover, at build time.
+
+    ``precheck`` finds the same problem, but only when a case is checked or run;
+    by then the user has been asked for every other value and a case has been
+    written for conditions that cannot be simulated.
+    """
+    t_inlet = params.get("T_inlet")
+    info = fgm_table.read_table_safe(of_writer.TABLE_SRC)
+    if not isinstance(t_inlet, (int, float)) or info is None or info.dimension < 2:
+        return None
+    defaults = template.defaults if template is not None else {}
+    phi = float(params.get("equivalence_ratio") or defaults.get("equivalence_ratio", 0.7))
+    p_0 = float(params.get("p_0") or defaults.get("p_0", info.pressure))
+    lo, hi = info.range_of(1)
+    try:
+        ht = cantera_tool.unburnt_enthalpy(phi, float(t_inlet), p_0)
+    except Exception:  # noqa: BLE001 - leave it to the later checks
+        return None
+    if lo <= ht <= hi:
+        return None
+    t_max = cantera_tool.max_unburnt_temperature(phi, p_0, hi)
+    return {
+        "status": "outside_table",
+        "case_type": template.name if template is not None else None,
+        "T_inlet": t_inlet,
+        "max_T_inlet": round(t_max),
+        "message": (
+            f"An unburnt-gas temperature of {t_inlet:g} K is outside the FGM table: "
+            f"its enthalpy ({ht:.4g} J/kg) lies outside the tabulated range "
+            f"[{lo:.4g}, {hi:.4g}] J/kg. At phi = {phi:g} and {p_0:g} Pa the table "
+            f"covers unburnt mixtures up to about {t_max:.0f} K. Nothing was built "
+            "and no other values are needed: ask the user for a lower temperature "
+            "(or explain that this needs a regenerated table)."
+        ),
+    }
+
+
 def _run_build_case(args: dict[str, Any], session: bool = True) -> dict[str, Any]:
     """Build one case. ``session=False`` (a campaign's own builds) neither
     inherits from nor becomes the conversation's last built case: a campaign
@@ -960,6 +1007,11 @@ def _run_build_case(args: dict[str, Any], session: bool = True) -> dict[str, Any
         return unit_error
     base, inherited = _inherit(params, template, args) if session else (None, {})
     params = {**inherited, **params}
+    # Checked before asking for anything else: a 3000 K unburnt mixture is not
+    # worth collecting a velocity and a plate temperature for.
+    outside = _outside_table(params, template)
+    if outside:
+        return outside
     missing = validator.find_missing(params, template)
     if missing:
         return {

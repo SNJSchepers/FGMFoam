@@ -326,6 +326,25 @@ def test_a_note_may_name_its_file_with_line_numbers() -> None:
     assert chat._SOURCE_PATH.findall(text) == ["solver/applications/FGMFoam/FGMFoam.C"]
 
 
+def test_an_unburnt_temperature_outside_the_table_is_told_to_the_model() -> None:
+    # The 3B answered "set up a slot burner at 3000 K" by asking for the
+    # temperature again; build_case, which refuses 3000 K, never ran. The table
+    # check now reaches the model before it answers, whatever it then does.
+    note = chat._table_temperature_note(
+        "Can you set up a laminarSlotburner case with initial temperature of 3000 K ?")
+    assert note and "3000 K" in note and "900 K" in note
+    assert chat._table_temperature_note("a flamelet at 450 K") is None
+    # A plate temperature is not an unburnt temperature.
+    assert chat._table_temperature_note("0.4 m/s, 300 K inlet, plate at 1200 K") is None
+    agent = _agent(["3000 K is outside the FGM table."])
+    agent.ask("Can you set up a laminarSlotburner case with initial temperature of 3000 K ?")
+    assert any("outside the FGM table" in e for e in agent.events)
+    # The tool refuses it too, without asking for the other values first.
+    result = tools.execute_tool("build_case", {"case_type": "laminarSlotBurner",
+                                               "case_name": "hot", "T_inlet": 3000})
+    assert result["status"] == "outside_table" and result["max_T_inlet"] < 1000
+
+
 def test_promises_and_denials_are_not_claims() -> None:
     # Mistral Large 4 phrasings that once tripped the claim check.
     request = "Set up a slot burner case at 0.4 m/s."

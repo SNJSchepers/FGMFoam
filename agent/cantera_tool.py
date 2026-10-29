@@ -59,6 +59,34 @@ class Thermochemistry:
     density_ratio: float = 1.0
 
 
+def unburnt_enthalpy(equivalence_ratio: float, t_inlet: float, p_0: float) -> float:
+    """Specific (total) enthalpy of the unburnt mixture [J/kg], as the table's CV2."""
+    gas = ct.Solution(MECHANISM)
+    gas.set_equivalence_ratio(equivalence_ratio, fuel=FUEL, oxidizer=OXIDIZER)
+    gas.TP = t_inlet, p_0
+    return float(gas.enthalpy_mass)
+
+
+def max_unburnt_temperature(equivalence_ratio: float, p_0: float, h_max: float,
+                            t_low: float = 200.0, t_high: float = 3500.0) -> float:
+    """The unburnt temperature whose enthalpy equals ``h_max`` [K] (bisection).
+
+    The enthalpy of a fixed composition rises monotonically with temperature, so
+    this is the warmest unburnt mixture a table with enthalpy range up to
+    ``h_max`` can represent.
+    """
+    gas = ct.Solution(MECHANISM)
+    gas.set_equivalence_ratio(equivalence_ratio, fuel=FUEL, oxidizer=OXIDIZER)
+    for _ in range(40):
+        t_mid = 0.5 * (t_low + t_high)
+        gas.TP = t_mid, p_0
+        if gas.enthalpy_mass > h_max:
+            t_high = t_mid
+        else:
+            t_low = t_mid
+    return t_low
+
+
 def compute_thermochemistry(
     equivalence_ratio: float,
     t_inlet: float,

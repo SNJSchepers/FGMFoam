@@ -620,6 +620,32 @@ _NOTE_HEADING = re.compile(r"^#+\s+(.+)$", re.MULTILINE)
 _STRONG_HEADING_MATCH = 2
 
 
+# Temperatures the FGM table cannot hold, found before the model answers. The
+# 3B answered "set up a slot burner at 3000 K" by asking for the temperature
+# again, with no tool call, so build_case (which refuses it) never ran. This is
+# input preparation, not a guard: it only adds a fact, whatever the model does.
+_KELVIN = re.compile(r"(?<![\w.])(\d+(?:\.\d+)?)\s*K\b")
+_WALL_WORDS = re.compile(r"(?i)\b(?:plate|wall)\b")
+
+
+def _table_temperature_note(user_input: str) -> Optional[str]:
+    """A note for each unburnt temperature in the message the table cannot hold."""
+    found = []
+    for match in _KELVIN.finditer(user_input):
+        # A plate or wall temperature is inverted at the local Yc, not the
+        # unburnt one, so the unburnt limit does not apply to it.
+        if _WALL_WORDS.search(user_input[max(0, match.start() - 30):match.start()]):
+            continue
+        refusal = tools_module.unburnt_temperature_outside_table(float(match.group(1)))
+        if refusal:
+            found.append(refusal)
+    if not found:
+        return None
+    return ("Fact check, from the FGM table (not the user's words): "
+            + " ".join(found) + " Tell the user this first. Do not build a case "
+            "at that temperature, and do not ask for other values for it.")
+
+
 def _source_named_by_notes(hits: list[Hit], question: str) -> Optional[str]:
     """The source file the top-ranked notes point to for this question.
 
@@ -1252,6 +1278,10 @@ class ChatAgent:
         else:
             self._emit("retrieved no matching context")
         system = SYSTEM_PROMPT + "\n\n# Retrieved context\n" + format_context(hits)
+        table_note = _table_temperature_note(user_input)
+        if table_note:
+            self._emit("temperature outside the FGM table -> telling the model")
+            system += "\n\n# Fact check for this message\n" + table_note
 
         # For "how does X work / how is it implemented" questions that surface a
         # source file, force the model to read the implementation on the first
@@ -1309,9 +1339,9 @@ class ChatAgent:
 
             if not msg.tool_calls:
                 text = _message_text(msg)
-                missing = _unapplied_values(user_input, executed)
                 claimed = _claim_correction(user_input, text, outcomes) or (
                     not executed and _PROMISED_CALL.search(text) is not None)
+                missing = _unapplied_values(user_input, executed)
                 if claimed and not missing and nudge is None and step < MAX_TOOL_ROUNDS:
                     # The reply claims an action no tool performed: one chance to
                     # actually perform it before the correction is appended.
