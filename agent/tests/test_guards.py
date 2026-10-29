@@ -314,6 +314,13 @@ def test_a_word_in_most_paths_earns_no_path_bonus() -> None:
     assert _lexical_scores("file3", chunks)[3] > _lexical_scores("file3", chunks)[0]
 
 
+def test_model_is_not_a_topic_word() -> None:
+    # "model" is a substring of every combustionModel/ path; as a query word it
+    # put that directory's licence headers above the diffusion-model note.
+    from rag.index import _lexical_query_terms
+    assert _lexical_query_terms("Which diffusion model is used?") == ["diffusion"]
+
+
 def test_a_note_may_name_its_file_with_line_numbers() -> None:
     text = "loop (`solver/applications/FGMFoam/FGMFoam.C:145-209`) does, in order:"
     assert chat._SOURCE_PATH.findall(text) == ["solver/applications/FGMFoam/FGMFoam.C"]

@@ -91,6 +91,53 @@ subGridModel none;`). Its specific assumptions are therefore:
 - **No sub-grid model** (`subGridModel none`) — no SGS turbulence–chemistry
   closure (consistent with the laminar/DNS/well-resolved-LES use described above).
 
+## Diffusion model: unity Lewis number (Le = 1), no differential diffusion
+
+The diffusion (transport) model of FGMFoam's only FGM model, `FGM_PM_UL_NA`, is
+**unity Lewis number**: `transportModel unityLewis` in `FGMCoeffs`, the "UL" in
+the model's name. All species and heat diffuse at the same rate, so there is no
+preferential or differential diffusion and no Soret effect. In practice this means
+the control variables `Yc` and `ht` both diffuse with the **thermal diffusivity**
+`alpha = lambda/cp`, which the table update sets in every cell
+(`alphaCells[celli] = variables_[ilambda]/variables_[icp]`,
+`solver/src/combustionModel/FGM/FGM_PM_UL_NA/FGM_PM_UL_NA.C:408`).
+
+The diffusion terms in the two transport equations
+(`FGM_PM_UL_NA.C:336-356`) are
+
+    - fvm::laplacian(alpha + this->turbulence().mut()/Sct_, Yc_)
+    - fvm::laplacian(alpha + this->turbulence().mut()/Sct_, ht_)
+
+so the effective diffusivity is the laminar `alpha` (unity Lewis) plus, only when
+a turbulence model is active, a turbulent part `mut/Sct` (gradient-diffusion
+hypothesis, turbulent Schmidt number `Sct` default 0.7). For a laminar case
+`mut` is zero and the diffusion is purely unity-Lewis molecular diffusion.
+
+Models with non-unity Lewis numbers (preferential and differential diffusion,
+needed for hydrogen flames) are not in this release; a new transport model would
+be a new FGM model class selected through `transportModel`.
+
+## The FGM update step: what the table lookup writes into the thermo fields
+
+`FGM_PM_UL_NA::update()` (`solver/src/combustionModel/FGM/FGM_PM_UL_NA/FGM_PM_UL_NA.C:360-479`)
+runs after the Yc/ht transport, every time step. It loops over **every cell, and
+then every boundary face**, looks up the table at that point's (Yc, ht) with
+`lookupFGM_2D`, and writes the result into fields it finds by name:
+
+- `T` (temperature), `mu` (viscosity), `alpha` = lambda/cp (thermal
+  diffusivity, which under unity Lewis is also the diffusivity of Yc and ht);
+- `thermo:psi` = table density / table pressure, so that `rho = psi*p`;
+- the species mass fractions `CH4`, `H2`, `H2O`, `OH`, `O2`, `CO2`, `CO`, and
+  `HeatRelease`;
+- `sourceYc`, the source term of the Yc equation.
+
+Three rules are applied on the way: a **negative `sourceYc` is clipped to 0**
+(cells and faces); `sourceYc` is **set to 0 on `wall` patches** (no reaction at a
+wall); and on a boundary the **temperature is only overwritten where `T` does not
+fix its value** (`!pT.fixesValue()`), so a prescribed wall or inlet temperature
+is kept. The thermo fields are written directly (the model takes them by name and
+const_casts them), which is why renaming a table column or a field breaks this.
+
 ## Boundary conditions of the laminar slot burner case
 
 The field boundary conditions live in the case's time-zero field files

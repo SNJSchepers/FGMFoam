@@ -71,6 +71,9 @@ _LEXICAL_STOPWORDS: frozenset[str] = frozenset({
     "can", "could", "would", "should", "you", "your", "explain", "describe",
     "tell", "about", "work", "works", "working", "case", "cases", "please",
     "set", "give", "show", "into", "its", "their", "have", "has", "had",
+    # "which diffusion model" / "the FGM model": generic, yet a substring of every
+    # combustionModel/ path, which put that directory's licence headers on top.
+    "model", "models",
 })
 
 
