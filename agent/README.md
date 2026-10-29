@@ -1016,6 +1016,9 @@ agent/.venv/bin/python agent/evals/run_eval.py --only S05 Q03 --repeat 3
 agent/.venv/bin/python agent/evals/run_eval.py --rescore agent/evals/results/<ts>/results.json  # after fixing a check
 ```
 
+All scenarios, with the exact user messages and the checks each turn must pass,
+are in [`agent/evals/scenarios.py`](evals/scenarios.py); `--list` prints them.
+
 - **A. Simulation manager** (`S01`–`S11`) covers:
   - building a flamelet and a slot burner;
   - asking for the case type or missing parameters instead of inventing them;
