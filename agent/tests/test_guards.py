@@ -412,9 +412,23 @@ def test_a_range_of_cases_is_a_campaign_and_asking_back_is_not_flagged() -> None
     assert "campaign" in result["message"]
     assert "Not applied" not in reply
     # The values below the usual range are flagged before the model answers.
-    assert "hole_size = 0.0002 m" in chat._input_fact_note(request)
+    assert "hole_size = 0.2 mm" in chat._input_fact_note(request)
     # One case, or a rebuild, is not a series.
     assert not chat._wants_series("Rebuild that case with a plate thickness of 5 mm")
+
+
+def test_a_value_warning_the_reply_left_out_is_added_to_it() -> None:
+    # The 3B was told 0.2 mm is far below the usual slot size and replied with a
+    # proposal of hole sizes, without a word about it.
+    request = ("Can you setup a range of laminar slot burner test cases with hole "
+               "diameters spanning from 0.2 to 1 mm?")
+    agent = _agent(["I propose hole sizes of 0.4, 0.6 and 0.8 mm. Please confirm if "
+                    "you want to use these proposed hole sizes."])
+    reply = agent.ask(request)
+    assert "Check:" in reply and "0.2 mm" in reply and "1 mm to 40 mm" in reply
+    # A reply that raises it itself gets nothing added.
+    agent = _agent(["0.2 mm is far below the usual slot size; is that what you mean?"])
+    assert "Check:" not in agent.ask(request)
 
 
 def test_asking_for_missing_values_is_not_flagged_as_not_applied() -> None:

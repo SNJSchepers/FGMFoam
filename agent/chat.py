@@ -382,6 +382,28 @@ _USE_CAMPAIGN_RESULT: dict[str, Any] = {
 }
 
 
+def _use_campaign_result(user_input: str) -> dict[str, Any]:
+    """The campaign hint, with evenly spaced values when the user gave a range.
+
+    The 3B, left to it, proposed "0.4 mm (halfway between 0.2 and 1 mm)", 0.6 and
+    0.8 mm: neither end point, and the wrong half.
+    """
+    result = dict(_USE_CAMPAIGN_RESULT)
+    for name, values in _values_in_message(user_input).items():
+        if len(values) != 2:
+            continue
+        low, high = sorted(values)
+        proposal = [low + (high - low) * i / 4 for i in range(5)]
+        spec = next(s for s in validator.PARAM_SPECS if s.name == name)
+        result["proposed"] = {"variable": name, "values": [float(f"{v:.6g}") for v in proposal]}
+        result["message"] += (
+            f" A proposal for {name}, five evenly spaced values including both ends: "
+            + ", ".join(_shown(v, spec.unit) for v in proposal)
+            + f" (in {spec.unit}: " + ", ".join(f"{v:.6g}" for v in proposal) + ").")
+        break
+    return result
+
+
 def _wants_series(text: str) -> bool:
     """The message asks for a series of cases (a campaign), not for one case."""
     return _SERIES.search(text) is not None
@@ -725,14 +747,19 @@ def _values_in_message(text: str) -> dict[str, list[float]]:
     return found
 
 
-def _input_fact_note(user_input: str) -> Optional[str]:
-    """Facts about the values in the message, checked before the model answers.
+def _shown(value: float, unit: str) -> str:
+    """A value as a person reads it: short lengths in mm."""
+    return f"{value * 1000:g} mm" if unit == "m" and abs(value) < 0.1 else f"{value:g} {unit}"
 
-    Temperatures the FGM table cannot hold (hard), and velocities or dimensions
-    far outside their usual range (to be confirmed). The 3B answered both "set
-    up a slot burner at 3000 K" and "... with 1000 m/s inlet velocity" without
-    calling a tool, so build_case, which catches both, never ran. Input
-    preparation, not a guard: it only adds facts, whatever the model does.
+
+def _input_facts(user_input: str) -> tuple[list[str], list[str]]:
+    """(hard, unusual): facts about the values in the message, as sentences.
+
+    Hard: temperatures the FGM table cannot hold. Unusual: velocities or
+    dimensions far outside their usual range, to be confirmed by the user. The 3B
+    answered "set up a slot burner at 3000 K" and "... with 1000 m/s inlet
+    velocity" without calling a tool, so build_case, which catches both, never
+    ran; these facts reach the model before it answers.
     """
     hard, unusual = [], []
     for match in _KELVIN.finditer(user_input):
@@ -749,13 +776,20 @@ def _input_fact_note(user_input: str) -> Optional[str]:
     for name, values in _values_in_message(user_input).items():
         for entry in validator.unusual_values({name: values}, None, [specs[name]]):
             low, high = entry["usual_range"]
-            line = (f"{name} = {entry['value']:g} {entry['unit']} is far outside its "
-                    f"usual range ({low:g} to {high:g} {entry['unit']})")
+            unit = entry["unit"]
+            line = (f"{name} = {_shown(entry['value'], unit)} is far outside its usual "
+                    f"range ({_shown(low, unit)} to {_shown(high, unit)})")
             # A length came with the user's own unit (mm, cm), which is already
             # converted here, so a unit-slip guess would only confuse.
-            if entry.get("maybe_meant") and entry["unit"] != "m":
+            if entry.get("maybe_meant") and unit != "m":
                 line += f"; perhaps {entry['maybe_meant']}"
             unusual.append(line + ".")
+    return hard, unusual
+
+
+def _input_fact_note(user_input: str) -> Optional[str]:
+    """The facts as an instruction for the model, or None."""
+    hard, unusual = _input_facts(user_input)
     if not hard and not unusual:
         return None
     parts = ["Fact check, from the agent's checks (not the user's words):"]
@@ -767,6 +801,16 @@ def _input_fact_note(user_input: str) -> Optional[str]:
                      "they really mean this value and whether the unit is right; do "
                      "not build or ask for other values until they confirm.")
     return " ".join(parts)
+
+
+# Whether a reply passed the fact check on. The 3B was told that a 0.2 mm slot is
+# far below the usual range and answered by proposing hole sizes, without a word
+# about it; the facts are then added to the reply. A plain "please confirm these
+# values" does not count: it is about the proposal, not about the warning.
+_FACTS_RELAYED = re.compile(
+    r"(?i)\b(?:un)?usual\b|outside|are you sure|really (?:mean|want)|what you mean|"
+    r"unrealistic|not realistic|far (?:below|above)|very (?:small|large|high|low)|"
+    r"too (?:small|large|high|low)|is (?:that|this) (?:correct|right|intended)|unit")
 
 
 def _source_named_by_notes(hits: list[Hit], question: str) -> Optional[str]:
@@ -1405,6 +1449,7 @@ class ChatAgent:
         else:
             self._emit("retrieved no matching context")
         system = SYSTEM_PROMPT + "\n\n# Retrieved context\n" + format_context(hits)
+        hard_facts, unusual_facts = _input_facts(user_input)
         table_note = _input_fact_note(user_input)
         if table_note:
             self._emit("value outside the table or its usual range -> telling the model")
@@ -1520,6 +1565,13 @@ class ChatAgent:
                         "nudge", "claim_correction",
                         "reply claimed an action no tool performed — corrected"):
                     text += correction
+                facts = hard_facts + unusual_facts
+                if facts and not _FACTS_RELAYED.search(text) and self._guard(
+                        "nudge", "fact_check_relayed",
+                        "the reply left out the value check — added to it"):
+                    text += "\n\n> ⚠️ **Check:** " + " ".join(facts)
+                    if unusual_facts:
+                        text += " Is that what you mean, and is the unit right?"
                 self.history.append({"role": "assistant", "content": text})
                 return text
 
@@ -1587,7 +1639,7 @@ class ChatAgent:
                       and self._guard("block", "campaign_requested",
                                       "skipped build_case (a range of cases was "
                                       "asked for — that is a campaign)")):
-                    result = _USE_CAMPAIGN_RESULT
+                    result = _use_campaign_result(user_input)
                 elif (name in _CASE_TYPE_TOOLS
                       and (template := _requested_template(name, args)) is not None
                       and not template.mentioned_in(said)
