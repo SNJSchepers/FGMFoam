@@ -409,6 +409,30 @@ def _wants_series(text: str) -> bool:
     return _SERIES.search(text) is not None
 
 
+_ONE_CASE = re.compile(r"(?i)\b(?:one|single|just a|only a) (?:\w+ )?case\b")
+# The user agreeing to what the agent just proposed.
+_AGREES = re.compile(
+    r"(?i)^\s*(?:yes|yeah|yep|ok(?:ay)?|sure|fine|agreed|correct|go ahead|please do|do it)\b"
+    r"|\b(?:sounds good|keep (?:the )?defaults?|use (?:those|these|them|the defaults?)"
+    r"|(?:those|these) are fine|go ahead)\b")
+
+
+def _previous_reply(history: list[dict[str, Any]]) -> str:
+    """The agent's last plain-text reply before the current user message."""
+    for message in reversed(history[:-1]):
+        if message.get("role") == "assistant" and isinstance(message.get("content"), str) \
+                and message["content"] and not message.get("tool_calls"):
+            return message["content"]
+    return ""
+
+
+def _previous_user(history: list[dict[str, Any]]) -> str:
+    """The user's message before the current one."""
+    users = [m["content"] for m in history
+             if m.get("role") == "user" and isinstance(m.get("content"), str)]
+    return users[-2] if len(users) >= 2 else ""
+
+
 def _is_feasibility_question(text: str) -> bool:
     lowered = text.lower()
     return any(marker in lowered for marker in _FEASIBILITY_MARKERS)
@@ -1494,6 +1518,20 @@ class ChatAgent:
         # Everything the user has said so far, to confirm a case type was asked for.
         said = "\n".join(m["content"] for m in self.history
                          if m.get("role") == "user" and isinstance(m.get("content"), str))
+        # "Yes, keep the defaults for the rest": values the agent proposed in its
+        # previous reply were seen and accepted, so they count as the user's.
+        # Without this, required values the user agreed to (T_inlet = 300 K) were
+        # refused as invented, nine times in one turn.
+        if _AGREES.search(user_input):
+            said += "\n" + _previous_reply(self.history)
+        # A series asked for in the previous message is still a series now
+        # ("a range of cases from 0.2 to 1 mm" -> "let's do 1, 2, 3, 4").
+        series = _wants_series(user_input) or (
+            _wants_series(_previous_user(self.history)) and not _ONE_CASE.search(user_input))
+        # The same refusal twice in a row: the model gets no tools on its next
+        # step, so it answers the user instead of retrying the same call.
+        refusals: dict[tuple[str, str, str], int] = {}
+        tools_off = False
         # (tool, status, result) of every call this turn, for the claim check.
         outcomes: list[tuple[str, str, dict[str, Any]]] = []
         # (tool, args) of every executed call, for the requested-value check.
@@ -1506,7 +1544,7 @@ class ChatAgent:
         for step in range(MAX_TOOL_ROUNDS + 1):
             messages = [{"role": "system", "content": system},
                         *self._fitted_history(system)]
-            response = self._complete(messages, with_tools=True)
+            response = self._complete(messages, with_tools=not tools_off)
             msg = response.choices[0].message
 
             if not msg.tool_calls:
@@ -1635,7 +1673,7 @@ class ChatAgent:
                       and self._guard("block", "dont_start",
                                       f"skipped {name} (the user said not to start it)")):
                     result = _DEFERRED_DONT_START_RESULT
-                elif (name == "build_case" and _wants_series(user_input)
+                elif (name == "build_case" and series
                       and self._guard("block", "campaign_requested",
                                       "skipped build_case (a range of cases was "
                                       "asked for — that is a campaign)")):
@@ -1702,8 +1740,14 @@ class ChatAgent:
                                 result = _fit_file_read(result, budget, [], user_input)
                     if name in _PREPARE_TOOLS:
                         prepared_this_turn = True
-                outcomes.append((name, str(result.get("status") or
-                                           ("error" if "error" in result else "")), result))
+                status = str(result.get("status") or ("error" if "error" in result else ""))
+                outcomes.append((name, status, result))
+                if status not in ("built", "prepared", "ok", "launched", "switched", "started",
+                                  "running", "current", "collected", "updated"):
+                    key = (name, status, str(result.get("message") or result.get("error"))[:200])
+                    refusals[key] = refusals.get(key, 0) + 1
+                    if refusals[key] >= 2:
+                        tools_off = True
                 self.history.append({
                     "role": "tool",
                     "tool_call_id": tc.id,

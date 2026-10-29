@@ -431,6 +431,41 @@ def test_a_value_warning_the_reply_left_out_is_added_to_it() -> None:
     assert "Check:" not in agent.ask(request)
 
 
+def test_values_the_user_agreed_to_count_as_given_and_a_series_carries_over() -> None:
+    # Turn 1: a range was asked for; the agent proposed values and conditions.
+    tools.reset_session_cases()
+    agent = _agent([
+        "I propose hole sizes 1, 2, 3 and 4 mm, at T_inlet = 300 K, T_plate = 300 K "
+        "and an inlet velocity of 0.2 m/s. Shall I use those?",
+        # Turn 2: the model first tries single builds, then the campaign.
+        [_call("build_case", {"case_type": "laminarSlotBurner", "T_inlet": 300,
+                              "T_plate": 300, "inlet_velocity": 0.2, "hole_size": 0.001})],
+        [_call("run_campaign", {"case_type": "laminarSlotBurner", "variable": "hole_size",
+                                "values": [0.001, 0.002, 0.003, 0.004], "T_inlet": 300,
+                                "T_plate": 300, "inlet_velocity": 0.2})],
+        "How should I split the cores?",
+    ])
+    agent.ask("Can you setup a range of laminar slot burner cases with hole sizes "
+              "from 1 to 4 mm?")
+    agent.ask("lets do 1,2,3,4 please. And yes keep the defaults for the rest.")
+    statuses = [json.loads(m["content"]).get("status") for m in agent.history
+                if m["role"] == "tool"]
+    assert ("block", "campaign_requested", True) in agent.guards
+    assert ("block", "invented_values", True) not in agent.guards
+    assert statuses[-1] == "missing_cpu_plan", statuses
+
+
+def test_the_same_refusal_twice_ends_the_retries() -> None:
+    tools.reset_session_cases()
+    blocked = [_call("build_case", {"case_type": "laminarSlotBurner", "T_inlet": 333,
+                                    "T_plate": 444, "inlet_velocity": 0.2})]
+    agent = _agent([blocked, blocked, "I need the inlet and plate temperatures from you."])
+    reply = agent.ask("Set up a laminar slot burner at 0.2 m/s.")
+    # Two identical refusals, then the model had to answer (the script holds no more calls).
+    assert reply == "I need the inlet and plate temperatures from you."
+    assert sum(1 for m in agent.history if m["role"] == "tool") == 2
+
+
 def test_asking_for_missing_values_is_not_flagged_as_not_applied() -> None:
     tools.reset_session_cases()
     agent = _agent([
