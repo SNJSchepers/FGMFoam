@@ -363,6 +363,30 @@ _DEFERRED_FEASIBILITY_RESULT: dict[str, Any] = {
 }
 
 
+# "Set up a range of slot burner cases with hole diameters from 0.2 to 1 mm": the
+# 3B answered with build_case, one case, without the swept value. A request for
+# a series of cases is a campaign; build_case is sent back saying so.
+_SERIES = re.compile(
+    r"(?i)\b(?:range of|series of|set of|sweep(?:ing)?|spanning|campaign|"
+    r"parameter study|parametric study)\b"
+    r"|\b(?:several|multiple|a few|\d+)\s+(?:\w+\s+){0,4}?(?:cases|simulations|runs)\b")
+_USE_CAMPAIGN_RESULT: dict[str, Any] = {
+    "status": "not_performed",
+    "message": (
+        "Not built: the user asked for a RANGE of cases, which is a campaign. Use "
+        "run_campaign with case_type, the swept variable and its values in SI "
+        "units (lengths in metres). If the user gave only a range ('from 0.2 to "
+        "1 mm'), propose a few evenly spaced values and ask the user to confirm "
+        "them, together with any missing required conditions."
+    ),
+}
+
+
+def _wants_series(text: str) -> bool:
+    """The message asks for a series of cases (a campaign), not for one case."""
+    return _SERIES.search(text) is not None
+
+
 def _is_feasibility_question(text: str) -> bool:
     lowered = text.lower()
     return any(marker in lowered for marker in _FEASIBILITY_MARKERS)
@@ -574,6 +598,10 @@ _VALUE = re.compile(
 )
 _TO_SI: dict[str, float] = {"mm": 1e-3, "cm": 1e-2, "bar": 1e5}
 _VALUE_TOOLS: frozenset[str] = frozenset({"build_case", "change_settings", "run_campaign"})
+# Tool statuses that put a question to the user (or refuse until they answer).
+_TOOL_ASKS_USER: frozenset[str] = frozenset({
+    "missing_parameters", "missing_case_type", "missing_cpu_plan",
+    "confirm_values", "outside_table"})
 
 
 def _numbers(value: Any) -> list[float]:
@@ -677,6 +705,16 @@ def _values_in_message(text: str) -> dict[str, list[float]]:
                 unit, scale = _UNIT_SI[match.group(2)]
                 if unit == spec.unit:
                     add(spec.name, float(match.group(1)) * scale)
+            # A range shares its unit: "hole diameters from 0.2 to 1 mm" gives
+            # 0.2 mm and 1 mm (the 0.2 has no unit of its own).
+            span = re.compile(r"(?i:\b" + re.escape(phrase) + r"\b)[^\d\n;]{0,35}?"
+                              r"(\d+(?:\.\d+)?)\s*(?:to|-|–|and)\s*"
+                              r"(\d+(?:\.\d+)?)\s*(mm|cm|m/s|m)(?![\w/])")
+            for match in span.finditer(text):
+                unit, scale = _UNIT_SI[match.group(3)]
+                if unit == spec.unit:
+                    add(spec.name, float(match.group(1)) * scale)
+                    add(spec.name, float(match.group(2)) * scale)
     by_unit: dict[str, list[str]] = {}
     for spec in specs:
         by_unit.setdefault(spec.unit, []).append(spec.name)
@@ -1430,7 +1468,11 @@ class ChatAgent:
                 text = _message_text(msg)
                 claimed = _claim_correction(user_input, text, outcomes) or (
                     not executed and _PROMISED_CALL.search(text) is not None)
-                missing = _unapplied_values(user_input, executed)
+                # A tool that asked the user something (missing values, the CPU
+                # plan, a confirmation) makes asking the right reply: the values
+                # are applied after the answer, so they are not "not applied".
+                asked = any(st in _TOOL_ASKS_USER for _, st, _ in outcomes)
+                missing = [] if asked else _unapplied_values(user_input, executed)
                 if claimed and not missing and nudge is None and step < MAX_TOOL_ROUNDS:
                     # The reply claims an action no tool performed: one chance to
                     # actually perform it before the correction is appended.
@@ -1541,6 +1583,11 @@ class ChatAgent:
                       and self._guard("block", "dont_start",
                                       f"skipped {name} (the user said not to start it)")):
                     result = _DEFERRED_DONT_START_RESULT
+                elif (name == "build_case" and _wants_series(user_input)
+                      and self._guard("block", "campaign_requested",
+                                      "skipped build_case (a range of cases was "
+                                      "asked for — that is a campaign)")):
+                    result = _USE_CAMPAIGN_RESULT
                 elif (name in _CASE_TYPE_TOOLS
                       and (template := _requested_template(name, args)) is not None
                       and not template.mentioned_in(said)

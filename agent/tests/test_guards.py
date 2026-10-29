@@ -396,6 +396,38 @@ def test_an_unrealistic_velocity_is_told_to_the_model_before_it_answers() -> Non
     assert chat._input_fact_note("plate thickness of 5 mm") is None
 
 
+def test_a_range_of_cases_is_a_campaign_and_asking_back_is_not_flagged() -> None:
+    # As with the 3B: one build_case, no swept value, then a reply asking for
+    # values, which got a misleading "Not applied: 1 mm" appended.
+    tools.reset_session_cases()
+    request = ("Can you setup a range of laminar slot burner test cases with hole "
+               "diameters spanning from 0.2 to 1 mm?")
+    agent = _agent([
+        [_call("build_case", {"case_type": "laminarSlotBurner", "plate_thickness": 0.0031139})],
+        "Which hole sizes, and what inlet velocity and temperatures should I use?",
+    ])
+    reply = agent.ask(request)
+    assert ("block", "campaign_requested", True) in agent.guards
+    result = json.loads(next(m for m in agent.history if m["role"] == "tool")["content"])
+    assert "campaign" in result["message"]
+    assert "Not applied" not in reply
+    # The values below the usual range are flagged before the model answers.
+    assert "hole_size = 0.0002 m" in chat._input_fact_note(request)
+    # One case, or a rebuild, is not a series.
+    assert not chat._wants_series("Rebuild that case with a plate thickness of 5 mm")
+
+
+def test_asking_for_missing_values_is_not_flagged_as_not_applied() -> None:
+    tools.reset_session_cases()
+    agent = _agent([
+        [_call("build_case", {"case_type": "laminarSlotBurner", "inlet_velocity": 0.4})],
+        "I still need the inlet and plate temperatures.",
+    ])
+    reply = agent.ask("Set up a slot burner case at 0.4 m/s with a 6 mm hole size.")
+    assert "Not applied" not in reply
+    assert ("nudge", "unapplied_value", True) not in agent.guards
+
+
 def test_celsius_is_read_as_kelvin() -> None:
     text, converted = chat.celsius_to_kelvin("inlet 27 °C, plate 100 C, 0.4 m/s, 3 cases")
     assert "300.15 K (27 °C)" in text and "373.15 K (100 °C)" in text
