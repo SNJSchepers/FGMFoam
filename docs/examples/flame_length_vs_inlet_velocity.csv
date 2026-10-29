@@ -1,0 +1,6 @@
+inlet_velocity_m_s,flame_length_mm,outcome,flame_length_lower_bound_mm
+0.2,5.436,measured,
+0.3,9.943,measured,
+0.4,14.352,measured,
+0.5,18.549,measured,
+0.6,22.530,measured,

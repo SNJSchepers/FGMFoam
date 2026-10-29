@@ -1,5 +1,30 @@
-# IDE
+# IDE / editor swap & backup files, and OS cruft
 .vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Agent local config, generated RAG index and campaign output
+.env
+.env.*
+!.env.example
+agent/index/
+agent/batch.log
+agent/campaigns/
+agent/.cache/
+agent/evals/.sandbox/
+agent/evals/results/
+
+# Local working notes and Claude Code instructions, not part of the release
+agent/ROADMAP.md
+CLAUDE.md
+.claude/
 
 # OpenFOAM build artifacts
 **/Make/linux64*/
@@ -13,3 +38,8 @@ postProcessing/
 # OpenFOAM time step output directories (but not 0.orig/)
 testcases/*/[0-9].[0-9]*/
 testcases/*/[1-9]*/
+
+# Agent-generated cases, named <template>_<descriptor>. Template names may not
+# contain '_' (enforced by agent/cases/__init__.py), so this one rule covers the
+# cases of every template, including ones added as plugins.
+testcases/*_*/

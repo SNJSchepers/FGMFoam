@@ -1,0 +1,18 @@
+# Ollama Modelfile for the "local" preset's chat model.
+#
+# This does NOT define a model trained here: it re-tags Alibaba's Qwen2.5 7B
+# Instruct (Apache-2.0) with a context window large enough for the agent's
+# prompt plus the retrieved source chunks. Ollama's default (4096) truncates
+# them, and num_ctx cannot be set over the OpenAI-compatible endpoint.
+#
+#   ollama pull qwen2.5:7b-instruct
+#   ollama create qwen2.5-7b-16k -f agent/Modelfile
+#
+# The 3B variant used by the "local-3b" preset is the same with
+# FROM qwen2.5:3b-instruct and the same num_ctx 16384 (note: the 3B is under the
+# Qwen Research licence, non-commercial, not Apache-2.0): the agent's system prompt
+# plus tool schemas alone is ~10k tokens, so an 8k context silently truncates
+# every turn (measured: prompt_eval_count capped at 8191).
+
+FROM qwen2.5:7b-instruct
+PARAMETER num_ctx 16384

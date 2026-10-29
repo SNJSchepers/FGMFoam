@@ -1,0 +1,20 @@
+# FGMFoam agent dependencies.
+#   agent/.venv/bin/pip install -r agent/requirements.txt
+#
+# Only the provider you actually use needs to be installed, but all three are
+# listed so any preset (/model claude, mistral, openai, local) works out of the box.
+
+# --- LLM providers ---
+# mistralai is pinned below 2.0: the 2.4.x wheel ships without a top-level
+# __init__.py, which breaks `from mistralai import Mistral`. The v1 line provides
+# the documented top-level import and the client.chat.complete(...) API used here.
+mistralai>=1.0.0,<2.0.0
+anthropic>=1.0.0           # Claude API (also used for /model claude*)
+openai>=1.0.0              # OpenAI API and any OpenAI-compatible server (Ollama, vLLM)
+
+# --- Thermochemistry and the local RAG index ---
+cantera>=3.0.0             # equilibrium / progress-variable bounds for build_case
+numpy>=1.24                # the in-memory vector index
+rich>=13.0                 # markdown rendering in the REPL
+matplotlib>=3.5            # campaign graphs (optional: without it the CSV is
+                           # still written and the plot is reported as skipped)
