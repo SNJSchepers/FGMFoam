@@ -868,8 +868,8 @@ No API key is needed in this mode. Notes:
 - **Switching models is cheap** (only the chat model, not the embeddings, so no
   reindex): change it live in the REPL with `/model local-3b` (or `/model` to
   see the current one), per run with `--model local-3b`, or by editing
-  `FGM_CHAT_MODEL`. With the guards on, the 3B passes 91% of the eval's
-  case-handling scenarios; on its own it passes about half (see
+  `FGM_CHAT_MODEL`. With the guards on, the 3B passes 97% of the eval's
+  case-handling scenarios; on its own it passes 39% (see
   [Measured results](#measured-results)). The guards catch its typical slips (a
   case type left out, mm written as m, a value it was not given), so keep them
   on, use a larger model for long multi-step requests, and read what the agent
@@ -1065,14 +1065,15 @@ runs passed (scenarios × repeats).
 | `mistral` (Mistral Large 4, "Le Chonk") | alone | 22/22 (100%) | not measured |
 | `mistral-large-3` (Mistral Large 3) | on | 17/22 (77%) | 20/20 (100%) |
 | `mistral-large-3` (Mistral Large 3) | alone | 16/22 (73%) | 20/20 (100%) |
-| `local-3b` (Qwen2.5 3B) | on | 30/33 (91%) | 24/30 (80%) |
-| `local-3b` (Qwen2.5 3B) | alone | 16/33 (48%) | 24/30 (80%) |
+| `local-3b` (Qwen2.5 3B) | on | 32/33 (97%) | 24/30 (80%) |
+| `local-3b` (Qwen2.5 3B) | alone | 13/33 (39%) | 24/30 (80%) |
 
 The Large 4 row was measured later, after the system prompt and the
 `run_campaign` description were made explicit about acting at once (build when
 every required value is given; call `run_campaign` before asking about cores);
 its solver-information suite was not run separately. With that same prompt,
-Large 3 alone reached 20/22.
+Large 3 alone reached 20/22. The 3B's simulation-manager rows were re-measured last, after the latest
+guards; its solver-information column is from the earlier run.
 
 What this shows:
 - **The guards are what make a 3B usable** for case handling, and they cost a
@@ -1334,8 +1335,8 @@ OpenFOAM solver, is the natural next step but is not done.
   code, `delete_cases` only removes generated `<template>_<name>` cases (never the
   templates, `solver/` or `tables/`), and every run passes the pre-run checks
   first unless you explicitly ask to skip them. Still, read what the agent reports before asking it to run or delete.
-- **Small local models need the guards.** A 3B passes about half of the
-  case-handling scenarios on its own and 91% with the guards (see
+- **Small local models need the guards.** A 3B passes 39% of the
+  case-handling scenarios on its own and 97% with the guards (see
   [Measured results](#measured-results)). Leave `FGM_GUARDS` at `on`; `shadow` is
   for evals only and does not enforce "do not start".
 - **Answers are only as good as what was read.** For "how does X work" the agent
