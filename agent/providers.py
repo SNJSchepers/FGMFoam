@@ -39,6 +39,7 @@ embedding configuration used when nothing else pins one.
 
 from __future__ import annotations
 
+import difflib
 import re
 from dataclasses import dataclass
 from typing import Optional
@@ -185,6 +186,7 @@ PRESET_BY_NAME: dict[str, Preset] = {p.name: p for p in PRESETS}
 # Accepted spellings that are not listed separately in /models.
 PRESET_ALIASES: dict[str, str] = {
     "mistral-large": "mistral",
+    "large": "mistral",            # the default large model, not mistral-large-3
     "le-chonk": "mistral",
     "claude-opus": "claude",
     "ollama": "local",
@@ -239,7 +241,51 @@ def split_choice(choice: str) -> tuple[Optional[Preset], Optional[str]]:
     preset = find_preset(text)
     if preset is not None:
         return preset, None
+    preset = _preset_by_word(text)
+    if preset is not None:
+        return preset, None
     return None, text
+
+
+def _preset_by_word(text: str) -> Optional[Preset]:
+    """The one preset with ``text`` as a word of its name or model id ("3B" ->
+    local-3b, "opus" -> claude), or None when no preset or several do."""
+    key = text.strip().lower()
+    matches = [p for p in PRESETS
+               if key in p.name.split("-") + p.chat_model.lower().split("-")]
+    return matches[0] if len(matches) == 1 else None
+
+
+# What the hosted APIs' own model ids look like. An id that fits none of them is
+# almost certainly a mistyped preset ("/model 3B" on the Claude API was accepted
+# and only failed, with a 404, at the first question). OpenAI-compatible servers
+# are not checked: local tags (Ollama, vLLM) are arbitrary names.
+_MODEL_ID_SHAPES: dict[str, re.Pattern[str]] = {
+    "anthropic": re.compile(r"^claude-[\w.-]+$", re.IGNORECASE),
+    "mistral": re.compile(
+        r"^(?:open-)?(?:mistral|ministral|magistral|mixtral|codestral|devstral|"
+        r"pixtral|voxtral)[\w.-]*$", re.IGNORECASE),
+}
+
+
+def implausible_model(provider: str, model: str) -> Optional[str]:
+    """Why ``model`` cannot be a model id of ``provider``, or None if it can be."""
+    shape = _MODEL_ID_SHAPES.get(provider)
+    if shape is None or shape.match(model.strip()):
+        return None
+    key = model.strip().lower()
+
+    def likeness(preset: Preset) -> float:
+        # Against the preset's name and its model id: "qwen" is local, not openai.
+        return max(difflib.SequenceMatcher(None, key, text).ratio()
+                   + (0.5 if key in text else 0.0)
+                   for text in (preset.name, preset.chat_model.lower()))
+
+    close = [p.name for p in sorted(PRESETS, key=likeness, reverse=True)[:2]
+             if likeness(p) >= 0.4]
+    hint = f"; did you mean {' or '.join(close)}?" if close else ""
+    label = {"anthropic": "Claude", "mistral": "Mistral"}[provider]
+    return f"'{model}' is not a preset or a {label} model id{hint} (/models lists the presets)"
 
 
 def describe_presets(active_model: str = "", active_provider: str = "") -> str:

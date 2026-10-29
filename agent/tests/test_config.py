@@ -328,6 +328,32 @@ def test_switch_model_changes_provider_and_model() -> None:
     assert agent.config.embed_model == "nomic-embed-text"
 
 
+def test_a_word_of_a_preset_name_selects_that_preset() -> None:
+    from providers import split_choice
+    assert split_choice("3B")[0].name == "local-3b"
+    assert split_choice("sonnet")[0].name == "claude-sonnet"
+    assert split_choice("small")[0].name == "mistral-small"
+    # Several presets share "claude": that stays a bare model id, not a guess.
+    assert split_choice("claude-opus-4-1") == (None, "claude-opus-4-1")
+
+
+def test_an_impossible_model_id_is_refused_at_switch_time() -> None:
+    # "/model 3B" used to be taken as a Claude model id and only failed, with a
+    # 404, at the next question. Now "3B" is the local-3b preset, and a word that
+    # fits no preset and no Claude id is refused straight away.
+    with env(ANTHROPIC_API_KEY="k"):
+        agent = _bare_agent(load_config(model="claude-sonnet"))
+        result = agent.switch_model("qwen")
+    assert result["status"] == "error" and "not" in result["error"]
+    assert agent.chat_model == "claude-sonnet-5", "a refused switch must not change state"
+    with env(ANTHROPIC_API_KEY="k"):
+        agent = _bare_agent(load_config(model="claude-sonnet"))
+        assert agent.switch_model("claude-haiku-4-5")["status"] == "switched"
+    with env():           # a local server accepts any tag
+        agent = _bare_agent(load_config(model="local"))
+        assert agent.switch_model("my-finetune:latest")["status"] == "switched"
+
+
 def test_switch_model_reports_a_missing_key_without_switching() -> None:
     with env():
         agent = _bare_agent(load_config(model="local"))

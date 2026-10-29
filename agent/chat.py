@@ -615,24 +615,37 @@ def _unapplied_values(user_input: str, calls: list[tuple[str, dict[str, Any]]]) 
 _SOURCE_PATH = re.compile(r"`(solver/[\w/.-]+\.(?:C|H|c|h))`")
 
 
+_NOTE_HEADING = re.compile(r"^#+\s+(.+)$", re.MULTILINE)
+
+
 def _source_named_by_notes(hits: list[Hit], question: str) -> Optional[str]:
     """The source file the top-ranked notes point to for this question.
 
-    Only the best-ranked note that names a file counts, and only if it ranks above
-    every source chunk. A note often names several files, so the one whose source
-    contains the most of the question's words wins (a tie keeps the earlier one).
+    Only notes ranked above every source chunk count. Of those that name a file,
+    the one whose section heading shares the most of the question's words decides,
+    and a tie keeps the better-ranked one. Ranking alone is not enough: "how does
+    the table lookup work, do the Yc bounds vary with enthalpy?" ranked the
+    enthalpy boundary-condition note (which mentions the lookup) above the note
+    headed "Table lookup", and the forced read opened the boundary condition.
+    A note often names several files, so the one whose source contains the most
+    of the question's words wins (a tie keeps the earlier one).
     """
-    named: list[str] = []
+    words = set(query_terms(question))
+    best: tuple[int, list[str]] = (-1, [])
     for hit in hits:
         if hit.chunk.kind == "cpp":
             break
         named = [path for path in dict.fromkeys(_SOURCE_PATH.findall(hit.chunk.text))
                  if (config_module.REPO_ROOT / path).is_file()]
-        if named:
-            break   # only the best-ranked note that names a file decides
+        if not named:
+            continue
+        heading = _NOTE_HEADING.search(hit.chunk.text)
+        score = len(words & set(query_terms(heading.group(1)))) if heading else 0
+        if score > best[0]:
+            best = (score, named)
+    named = best[1]
     if not named:
         return None
-    words = set(query_terms(question))
 
     def overlap(path: str) -> int:
         text = (config_module.REPO_ROOT / path).read_text(errors="replace").lower()
@@ -958,6 +971,9 @@ class ChatAgent:
                 # provider, endpoint and key — re-resolving from scratch would
                 # fall back to the default provider and ask for a key the user
                 # does not need (e.g. "qwen2.5-3b-16k" while running locally).
+                problem = providers.implausible_model(self.config.provider, bare_model)
+                if problem:
+                    raise ConfigError(problem)
                 new_config = dataclasses.replace(self.config, chat_model=bare_model)
             else:
                 new_config = config_module.load_config(model=choice)
