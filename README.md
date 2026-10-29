@@ -26,13 +26,16 @@ FGMFoam is designed as a modular framework: all FGM-related functionality — fi
 
 ## Build
 
-OpenFOAM must be sourced before building. Then source the local `bashrc` to set `LIB_LOCAL_SRC`, and run `Allwmake`:
+OpenFOAM must be sourced before building. Then, from inside `solver/`, source the local `bashrc` to set `LIB_LOCAL_SRC`, and run `Allwmake`:
 
 ```bash
 source /path/to/openfoam/etc/bashrc   # source your OpenFOAM installation
-source solver/bashrc                  # sets LIB_LOCAL_SRC=${PWD}/src
-cd solver && ./Allwmake
+cd solver
+source bashrc                         # sets LIB_LOCAL_SRC=${PWD}/src, so run it from solver/
+./Allwmake
 ```
+
+`Allwmake` always exits with status 0, even when a step fails: check that `FGMFoam` exists afterwards (`which FGMFoam`), or look for `Error` in its output.
 
 `Allwmake` runs `wclean` then `wmake` in this order (order matters due to dependencies):
 1. `src/lookUp/` → `$(FOAM_USER_LIBBIN)/liblookUp`
