@@ -1,0 +1,12 @@
+# Chem1D 1D free flames, CH4-air phi = 0.7, 1 atm, GRI-Mech 3.0, unity Lewis (the
+# code and settings that generated tables/database.fgm). 700 K hit Chem1D's
+# iteration limit without converging and is left out.
+T_unburnt_K,S_L_Chem1D_m_s
+300,0.1872
+350,0.2476
+400,0.3189
+450,0.4022
+500,0.4989
+550,0.6102
+600,0.7374
+650,0.8819

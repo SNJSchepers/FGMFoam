@@ -110,6 +110,10 @@ class CaseTemplate:
     # {"key": result field to plot, "label": y-axis label, "title": graph title}
     metric: Optional[dict[str, str]] = None
     sample_fields: tuple[str, ...] = ("T", "Yc", "U")
+    # How analyse_campaign(snapshots=true) shows a case's field (snapshots.py):
+    # {"field", "unit", "range", "mirror", "upright", "origin", "window"}. None:
+    # no snapshots (a 1D case has nothing to show).
+    snapshot: Optional[dict[str, Any]] = None
     # --- time step: dt = CFL * cell_size(params) / velocity_scale(...) ---------
     cell_size: Optional[Callable[[dict], Optional[float]]] = None
     # velocity_scale(params, thermo) -> (velocity [m/s], explanation) or None

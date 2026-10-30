@@ -145,6 +145,10 @@ CASE = CaseTemplate(
     velocity_scale=velocity_scale,
     domain_length=domain_length,
     check=geometry_problem,
+    # Upright like a Bunsen flame, the half slot mirrored into the whole one, from
+    # 2 mm before the plate's end to 25 mm after it.
+    snapshot={"field": "T", "unit": "K", "range": (280.0, 1800.0), "mirror": "ymax",
+              "upright": True, "origin": "body_end", "window": (5.5e-3, 25e-3)},
     # The conditions testcases/laminarSlotBurner/run ships with.
     shipped={"T_inlet": 300.0, "T_plate": 300.0, "inlet_velocity": 0.2},
     order=0,

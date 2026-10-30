@@ -43,6 +43,7 @@ import precheck
 import providers
 import provenance
 import runner
+import snapshots
 import solver_build
 import timestep
 import validator
@@ -609,6 +610,13 @@ TOOLS: list[dict[str, Any]] = [
                 "type": "object",
                 "properties": {
                     "campaign_name": {"type": "string", "description": "which campaign"},
+                    "snapshots": {
+                        "type": "boolean",
+                        "description": "also draw the field of every case (e.g. the "
+                        "flames) side by side, with the measurement below, as "
+                        "<campaign>_snapshots.png. Use it when the user asks to see "
+                        "the flames, the fields, snapshots or pictures of the cases.",
+                    },
                     "temperature_threshold": {
                         "type": "number",
                         "description": "flame-front temperature [K] (default 900)",
@@ -1591,6 +1599,22 @@ def _run_analyse_campaign(args: dict[str, Any]) -> dict[str, Any]:
         results["plot"] = str(png_path.relative_to(REPO_ROOT))
     if plot_error:
         results["plot_error"] = plot_error
+    if args.get("snapshots"):
+        template = case_templates.find_template(plan.case_type)
+        if template.snapshot is None:
+            results["snapshots_error"] = (
+                f"{plan.case_type} has no field snapshots (its plugin declares none; "
+                "a 1D case has nothing to show)")
+        else:
+            spec = validator.SPEC_BY_NAME.get(plan.variable)
+            image, error = snapshots.render(
+                plan, results, template.snapshot, campaign_module.METRIC[plan.case_type],
+                campaign_module.AXIS_LABEL.get(plan.variable, plan.variable),
+                spec.unit if spec and spec.unit not in ("-", "") else "")
+            if image:
+                results["snapshots"] = str(image.relative_to(REPO_ROOT))
+            if error:
+                results["snapshots_error"] = error
     results["status"] = "collected"
     return results
 

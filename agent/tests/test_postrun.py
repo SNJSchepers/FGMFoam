@@ -323,6 +323,54 @@ def test_sampled_file_columns_match_openfoam_output() -> None:
     assert min(values["Yc"]) >= 0.0
 
 
+def test_a_front_still_accelerating_is_not_converged() -> None:
+    # A 300 K flamelet stopped at 6 ms: 0.166 -> 0.185 m/s across its window
+    # passed the 5 % scatter test and was reported 3 % low.
+    times = [0.0005 * i for i in range(1, 13)]
+    steady = [0.04 - 0.185 * t for t in times]
+    start, drift = postrun.settled_start(times, steady, 2)
+    assert drift is None
+    rising = [0.04 - (0.15 * t + 3.0 * t * t) for t in times]   # speed 0.153 -> 0.186
+    start, drift = postrun.settled_start(times, rising, 2)
+    assert drift is not None and drift > postrun.TREND_TOLERANCE
+
+
+def test_snapshots_draw_each_case_from_its_cell_fields() -> None:
+    import tempfile
+    from types import SimpleNamespace as NS
+    import of_writer
+    import snapshots
+
+    def field(path, values):
+        body = "\n".join(f"{v:g}" for v in values)
+        path.write_text(f"FoamFile {{}}\ninternalField   nonuniform List<scalar> \n"
+                        f"{len(values)}\n(\n{body}\n)\n;\n")
+    with tempfile.TemporaryDirectory() as tmp:
+        saved = of_writer.TESTCASES_DIR
+        of_writer.TESTCASES_DIR = Path(tmp)
+        try:
+            rows = []
+            for k, u in enumerate((0.2, 0.4)):
+                time = Path(tmp) / f"laminarSlotBurner_snap_{k}" / "0.1"
+                time.mkdir(parents=True)
+                xs = [i * 1e-4 for i in range(30) for _ in range(10)]
+                ys = [j * 1e-4 for _ in range(30) for j in range(10)]
+                field(time / "Cx", xs); field(time / "Cy", ys)
+                field(time / "T", [300 + 1500 * (x > 1e-3 * (1 + 5 * u)) for x in xs])
+                rows.append({"case_name": time.parent.name, "inlet_velocity": u,
+                             "flame_length": 0.005 + 0.02 * u})
+            plan = NS(name="snap", case_type="laminarSlotBurner", variable="inlet_velocity",
+                      directory=Path(tmp))
+            spec = {"field": "T", "unit": "K", "range": (280.0, 1800.0), "mirror": "ymax",
+                    "upright": True}
+            path, error = snapshots.render(plan, {"rows": rows}, spec,
+                                           {"key": "flame_length", "label": "Flame length [m]",
+                                            "title": "Flame length"}, "Inlet velocity [m/s]", "m/s")
+            assert error is None and path.is_file() and path.stat().st_size > 10000
+        finally:
+            of_writer.TESTCASES_DIR = saved
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for test in tests:

@@ -465,20 +465,22 @@ for my go"*. `start_campaign` launches it later and re-checks the plan against
 the cores available at that moment. It counts as a run step, so it never fires in
 the same turn as a build.
 
-**Example.** A nine-case flamelet campaign, 300–700 K, run with the automatic
-time step (settled Courant 0.12–0.16 against the 0.1 target):
+**Example.** A nine-case flamelet campaign, 300–700 K, 20 ms per case, run with
+the automatic time step:
 
 ![Laminar flame speed against unburnt temperature](../docs/examples/laminar_flame_speed.png)
 
-The measured speeds are clean (every fit has R² ≥ 0.9996 and the unburnt gas is
-at rest), and they follow the expected trend, S_L ∝ T_u^2.1. The reference is a
-Cantera 1D free flame with the **same transport assumptions as the FGM model**:
-unity Lewis number, no thermal diffusion (Soret). FGMFoam sits a steady ~4 %
-below it across the whole range (4.1–5.5 %). An earlier comparison against
-Cantera's default mixture-averaged transport showed a gap growing from 8 % to
-20 % with preheat; that was differential diffusion in the reference, which the
-unity-Lewis model deliberately omits, not a fault in the table. Data:
-`docs/examples/laminar_flame_speed.csv`; regenerate with
+FGMFoam reproduces the 1D flames its table was generated from: **within 0.3 %
+of Chem1D** (GRI-Mech 3.0, unity Lewis) at every temperature from 300 to 650 K,
+and the trend follows S_L ∝ T_u^2.1. A Cantera 1D flame with the same transport
+assumptions is 3–4 % faster than both; that is the difference between the two 1D
+codes (mechanism data and implementation), not the solver. Two lessons from
+getting there: a first campaign stopped each flame at 6 ms, while it was still
+accelerating from its step-function start, and was reported 3 % low; the
+flame-speed analysis now requires the front speed to have stopped changing
+(`not_converged` otherwise), and the flamelets run 20 ms. Data:
+`docs/examples/laminar_flame_speed.csv` (with Chem1D and Cantera) and
+`docs/examples/chem1d_flame_speed.csv`; regenerate with
 `docs/examples/make_figures.py`.
 
 A five-case slot-burner campaign, inlet velocity 0.2–0.6 m/s at 300 K, two
@@ -499,7 +501,12 @@ domains hold the flame (0.2–0.4 m/s) the lengths agree within 0.01 mm. Data:
 `docs/examples/flame_length_vs_inlet_velocity.csv`.
 
 Output lives in `agent/campaigns/<name>/` (git-ignored): `campaign.json` (the
-sweep and the CPU plan used), `results.csv`, and `<name>.png`.
+sweep and the CPU plan used), `results.csv`, and `<name>.png`. Ask to *see* the
+cases ("show me the flames of that campaign") and `<name>_snapshots.png` is added:
+the field of every case side by side, upright for the slot burner, with the
+measurement below, as in [`docs/examples/slot_burner_flames.png`](../docs/examples/slot_burner_flames.png).
+The cell positions come from `postProcess -func writeCellCentres` (post-processing,
+not a solver run); the flamelet, being 1D, has no snapshots.
 
 ### After the run: what actually happened (`postrun.py`)
 
@@ -1293,6 +1300,7 @@ optional:
 | `ParamSpec(..., typical=(low, high))` | the usual range of a parameter; a value outside it is built only after the user confirms it |
 | `check` | `check(params) -> reason or None`: a hard consistency check on the complete parameters (e.g. slot narrower than the pitch) |
 | `shipped` | the conditions the case's own `run` script uses, e.g. `{"T_inlet": 300.0}`; used only when the user asks for the default values |
+| `snapshot` | how `analyse_campaign(snapshots=true)` draws a case's field (`field`, colour `range`, `mirror`, `upright`, `origin`, `window`): one image per case side by side, with the measurement below |
 | `keywords` | words that show the user asked for this case (e.g. `"flamelet"`, `"slot"`), so the agent accepts this case type rather than asking which case is meant |
 
 #### Step 3: **Pick or write the measurement.** `measures.py` covers the common cases,

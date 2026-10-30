@@ -74,6 +74,12 @@ MIN_TRANSIENT_FRACTION: float = 0.25
 
 # Relative scatter below which the front speed counts as steady.
 STEADY_TOLERANCE: float = 0.05
+# Within the measured window, the front speeds fitted to its first and second
+# halves may differ by at most this much. A speed still rising slowly passes the
+# scatter test: a 300 K flamelet stopped at 6 ms went 0.166 -> 0.185 m/s across
+# its window and was reported as 0.181, 3 % below its own table's 1D flame.
+TREND_TOLERANCE: float = 0.01
+MIN_TREND_POINTS: int = 6
 
 # Time steps treated as start-up when judging the Courant number. The ignition
 # discontinuity relaxes within a handful of steps; by step 20 both shipped cases
@@ -434,6 +440,32 @@ def steady_window(
     )
 
 
+def _fit_speed(times: list[float], positions: list[float]) -> float:
+    return _linear_fit(times, positions)[0]
+
+
+def settled_start(times: list[float], positions: list[float],
+                  start: int) -> tuple[int, Optional[float]]:
+    """(first index of a trend-free window, None) or (last-quarter start, drift).
+
+    From ``start`` on, the earliest window whose two halves give the same front
+    speed within ``TREND_TOLERANCE`` is taken; without one, the flame has not
+    settled and the relative drift over the last part of the run is returned.
+    """
+    n = len(positions)
+    for begin in range(start, n - MIN_TREND_POINTS + 1):
+        mid = begin + (n - begin) // 2
+        first = _fit_speed(times[begin:mid + 1], positions[begin:mid + 1])
+        second = _fit_speed(times[mid:], positions[mid:])
+        if second and abs(first - second) <= TREND_TOLERANCE * abs(second):
+            return begin, None
+    begin = max(start, n - max(MIN_TREND_POINTS, n // 4))
+    mid = begin + (n - begin) // 2
+    first = _fit_speed(times[begin:mid + 1], positions[begin:mid + 1])
+    second = _fit_speed(times[mid:], positions[mid:])
+    return begin, (abs(first - second) / abs(second) if second else None)
+
+
 def analyse_flamelet(
     samples: list[Sample], threshold: float = FLAME_TEMPERATURE,
     field: str = "T", velocity_field: str = "U",
@@ -494,6 +526,7 @@ def analyse_flamelet(
         if times[i + 1] > times[i]
     ]
     start, note = steady_window(times[1:], [abs(v) for v in instantaneous])
+    start, drift = settled_start(times, positions, start)
     keep = slice(start, len(positions))
     slope, _, r2 = _linear_fit(times[keep], positions[keep])
 
@@ -505,7 +538,7 @@ def analyse_flamelet(
     flame_speed = abs(slope - u_unburnt)
 
     result = {
-        "status": "measured",
+        "status": "measured" if drift is None else "not_converged",
         "laminar_flame_speed": flame_speed,
         "units": "m/s",
         "front_speed_lab_frame": slope,
@@ -517,6 +550,11 @@ def analyse_flamelet(
             "n_points": len(positions) - start,
         },
         "transient_note": note,
+        **({"convergence_note": (
+            f"the front speed still changes by {drift * 100:.1f}% between the halves "
+            "of the last part of the run, so the flame has not settled: run longer "
+            "(the value given is from that last part and is a lower or upper bound, "
+            "not the flame speed)")} if drift is not None else {}),
         "front_positions": [
             {"time": t, "x": x} for t, x in zip(times, positions)
         ],
